@@ -4,7 +4,6 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { onValue, ref } from "firebase/database";
 import Sidebar from "../components/workspace/Sidebar";
-import TopNavbar from "../components/workspace/TopNavbar";
 import { auth, db } from "../firebase";
 import { useWorkspaceStore } from "../hooks/useWorkspaceStore";
 import { createWorkspaceStatePayload, saveWorkspaceState } from "../lib/userData";
@@ -143,8 +142,8 @@ export default function WorkspaceLayout() {
       </div>
 
       <div
-        className={`relative z-10 mx-auto flex h-screen max-w-[1600px] ${
-          isImmersiveCareerGuidance ? "p-3 sm:p-4 lg:p-5" : "gap-6 p-4 lg:p-6"
+        className={`relative z-10 flex h-screen w-full ${
+          isImmersiveCareerGuidance ? "p-3 sm:p-4 lg:p-5" : "gap-4 p-3 sm:p-4 lg:p-5"
         }`}
       >
         {isImmersiveCareerGuidance ? null : (
@@ -164,10 +163,9 @@ export default function WorkspaceLayout() {
         >
           <div
             className={`theme-shell-panel flex h-full min-h-0 flex-col rounded-[34px] border backdrop-blur-2xl ${
-              isImmersiveCareerGuidance ? "overflow-hidden" : "p-5 sm:p-6 lg:p-8"
+              isImmersiveCareerGuidance ? "overflow-hidden" : "p-4 sm:p-5 lg:p-6"
             }`}
           >
-            {isImmersiveCareerGuidance ? null : <TopNavbar />}
             <div
               className={`min-h-0 flex-1 ${
                 isImmersiveCareerGuidance ? "overflow-hidden" : "overflow-y-auto pr-1"

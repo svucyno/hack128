@@ -412,8 +412,8 @@ export default function ResumeAnalyzerPage() {
   };
 
   return (
-    <div className="resume-page resume-font-body h-full rounded-[32px] px-4 py-6 sm:px-6">
-      <div className="mx-auto flex w-full max-w-3xl flex-col">
+    <div className="resume-page resume-font-body h-full w-full overflow-y-auto rounded-[32px] px-0 py-2">
+      <div className="flex w-full flex-col">
         <div className="resume-fade-up text-center">
           <div className="resume-badge mx-auto">
             <Sparkles className="h-3.5 w-3.5" />
@@ -423,7 +423,7 @@ export default function ResumeAnalyzerPage() {
             Resume Analyzer
           </h1>
           <p
-            className="mx-auto mt-3 max-w-2xl text-sm leading-7 sm:text-base"
+            className="mx-auto mt-3 max-w-4xl text-sm leading-7 sm:text-base"
             style={{ color: "var(--resume-text-muted)" }}
           >
             Upload a file or paste your resume, add a target job description, and

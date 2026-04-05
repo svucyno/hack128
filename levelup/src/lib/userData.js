@@ -361,7 +361,7 @@ function normalizeApplicationStatus(value) {
 
 function normalizeApplicationSource(value) {
   const normalized = String(value || "").trim().toLowerCase();
-  const allowed = ["linkedin", "careers", "referral", "college", "other"];
+  const allowed = ["linkedin", "careers", "referral", "college", "unstop", "other"];
   return allowed.includes(normalized) ? normalized : "";
 }
 

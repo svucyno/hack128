@@ -11,6 +11,7 @@ import {
   PenTool,
   Settings,
   Sparkles,
+  Target,
   Users,
   BookOpenCheck,
   Mic,
@@ -45,6 +46,7 @@ export const sidebarSections = [
   {
     title: "Placement OS",
     items: [
+      { label: "Recommended Jobs", to: "/workspace/recommended-jobs", icon: Target },
       { label: "Job Applications", to: "/workspace/job-applications", icon: Briefcase },
       { label: "Company Prep", to: "/workspace/company-prep", icon: Building2 },
       { label: "Task Calendar", to: "/workspace/task-calendar", icon: CalendarDays },
@@ -72,6 +74,7 @@ export const dashboardStats = [
 export const dashboardModules = [
   { title: "Resume Analyzer", subtitle: "ATS scoring for resume and job description compatibility", to: "/workspace/resume-analyzer", metric: "91%" },
   { title: "Career Guidance", subtitle: "AI-based career recommendation platform for students", to: "/workspace/career-guidance", metric: "12 roles" },
+  { title: "Recommended Jobs", subtitle: "Feed-style openings ranked for target roles and adjacent fits", to: "/workspace/recommended-jobs", metric: "Ranked" },
   { title: "Job Applications", subtitle: "Track companies, interview rounds, deadlines, and resume versions", to: "/workspace/job-applications", metric: "Pipeline" },
   { title: "Company Prep", subtitle: "Generate company-specific rounds, topics, checklists, and mock modes", to: "/workspace/company-prep", metric: "Prep pack" },
   { title: "Mock Interview", subtitle: "Gemini-powered HR, technical, and domain interview practice", to: "/workspace/mock-interview", metric: "Scored" },
@@ -98,6 +101,7 @@ export const overviewTrend = [
 export const quickActions = [
   { title: "Upload Resume", subtitle: "Start ATS scoring and resume parsing", icon: FileSearch, to: "/workspace/resume-analyzer" },
   { title: "Analyze Career", subtitle: "Open AI career guidance and role recommendations", icon: Briefcase, to: "/workspace/career-guidance" },
+  { title: "Recommended Jobs", subtitle: "See ranked openings for target and adjacent-fit roles", icon: Target, to: "/workspace/recommended-jobs" },
   { title: "Track Applications", subtitle: "Manage companies, deadlines, and interview rounds", icon: CalendarDays, to: "/workspace/job-applications" },
   { title: "Company Prep", subtitle: "Generate likely rounds, topics, and role-specific prep packs", icon: Building2, to: "/workspace/company-prep" },
   { title: "Mock Interview", subtitle: "Practice role-based interviews and save scored feedback", icon: Mic, to: "/workspace/mock-interview" },

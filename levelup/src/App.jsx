@@ -21,6 +21,7 @@ import AdaptiveLearningPage from "./pages/workspace/AdaptiveLearningPage";
 import JobApplicationTrackerPage from "./pages/workspace/JobApplicationTrackerPage";
 import MockInterviewLabPage from "./pages/workspace/MockInterviewLabPage";
 import CompanyPrepPacksPage from "./pages/workspace/CompanyPrepPacksPage";
+import RecommendedJobsPage from "./pages/workspace/RecommendedJobsPage";
 import SkillGapPage from "./pages/workspace/SkillGapPage";
 import SettingsPage from "./pages/workspace/SettingsPage";
 
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="resume-parser" element={<ResumeParserPage />} />
         <Route path="job-role-predictor" element={<JobRolePredictorPage />} />
         <Route path="job-applications" element={<JobApplicationTrackerPage />} />
+        <Route path="recommended-jobs" element={<RecommendedJobsPage />} />
         <Route path="company-prep" element={<CompanyPrepPacksPage />} />
         <Route path="mock-interview" element={<MockInterviewLabPage />} />
         <Route path="adaptive-learning" element={<AdaptiveLearningPage />} />
