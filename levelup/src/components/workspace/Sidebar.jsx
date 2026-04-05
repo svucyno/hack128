@@ -84,10 +84,10 @@ export default function Sidebar({ open, setOpen, collapsed = false, setCollapsed
         <button
           type="button"
           onClick={() => setCollapsed(false)}
-          className="fixed left-6 top-6 z-30 hidden items-center gap-2 rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-sm font-medium text-white shadow-lg backdrop-blur transition hover:border-white/20 hover:bg-black/55 lg:inline-flex"
+          className="fixed left-6 top-6 z-30 hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/45 text-white shadow-lg backdrop-blur transition hover:border-white/20 hover:bg-black/55 lg:inline-flex"
+          aria-label="Open sidebar"
         >
-          <ChevronRight className="h-4 w-4" />
-          <span>Open Sidebar</span>
+          <ChevronRight className="h-5 w-5 text-red-100" />
         </button>
       ) : (
         <aside className="hidden lg:block lg:h-full lg:w-[290px] lg:shrink-0">{panel}</aside>

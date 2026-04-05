@@ -8,6 +8,7 @@ import {
   createEmptyMockInterviewState,
   normalizeMockInterviewState,
 } from "./mockInterview";
+import { normalizeCompanyPrepPacks } from "./companyPrep";
 
 function pruneUndefined(value) {
   if (Array.isArray(value)) {
@@ -55,6 +56,7 @@ export function createWorkspaceStatePayload({
   processing = {},
   calendarTasks = [],
   jobApplications = [],
+  companyPrepPacks = [],
   lastVisitedRoute = "",
 } = {}) {
   return pruneUndefined({
@@ -72,6 +74,7 @@ export function createWorkspaceStatePayload({
     ),
     calendarTasks: normalizeCalendarTasks(calendarTasks),
     jobApplications: normalizeJobApplications(jobApplications),
+    companyPrepPacks: normalizeCompanyPrepPacks(companyPrepPacks),
     lastVisitedRoute: String(lastVisitedRoute || ""),
   });
 }

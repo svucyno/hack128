@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   ArrowRight,
   Bot,
@@ -21,6 +21,8 @@ import PageHeader from "../../components/workspace/PageHeader";
 import { auth } from "../../firebase";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
 import {
+  buildLocalMockInterviewAnswerResult,
+  buildLocalMockInterviewSession,
   normalizeMockInterviewState,
   recordMockInterviewAnswer,
   startMockInterviewSession,
@@ -61,6 +63,7 @@ const CONFIDENCE_OPTIONS = [
 const MAX_QUESTION_OPTIONS = [3, 4, 5, 6];
 
 export default function MockInterviewLabPage() {
+  const location = useLocation();
   const profile = useWorkspaceStore((state) => state.profile);
   const profileReady = useWorkspaceStore((state) => state.profileReady);
 
@@ -122,6 +125,7 @@ export default function MockInterviewLabPage() {
   const [form, setForm] = useState(() =>
     createInterviewForm(defaultRole, defaultFocusAreas),
   );
+  const routePrefillRef = useRef("");
 
   const interviewState = localInterviewState;
   const activeSession =
@@ -181,6 +185,40 @@ export default function MockInterviewLabPage() {
   }, [defaultFocusAreas, defaultRole]);
 
   useEffect(() => {
+    const prepPack = location.state?.companyPrepPack || null;
+    const signature = JSON.stringify({
+      packId: prepPack?.packId || "",
+      applicationId: prepPack?.applicationId || "",
+      role: prepPack?.role || "",
+      company: prepPack?.company || "",
+    });
+
+    if (!prepPack || !signature || routePrefillRef.current === signature) {
+      return;
+    }
+
+    routePrefillRef.current = signature;
+    setForm((current) => ({
+      ...current,
+      role: String(prepPack.role || current.role).trim(),
+      interviewType: normalizeInterviewTypeValue(
+        prepPack.interviewType || current.interviewType,
+      ),
+      difficulty: normalizeDifficultyValue(prepPack.difficulty || current.difficulty),
+      company: String(prepPack.company || current.company).trim(),
+      focusAreas: Array.isArray(prepPack.focusAreas) && prepPack.focusAreas.length
+        ? prepPack.focusAreas.join("\n")
+        : current.focusAreas,
+      jobDescription: String(prepPack.jobDescription || current.jobDescription).trim(),
+      maxQuestions: String(prepPack.maxQuestions || current.maxQuestions || "4"),
+    }));
+    setNotice(
+      `Loaded company prep for ${prepPack.company ? `${prepPack.company} · ` : ""}${prepPack.role || "selected role"}.`,
+    );
+    setError("");
+  }, [location.state]);
+
+  useEffect(() => {
     if (activeSession?.status !== "active" || !activeSession?.currentPrompt?.questionId) {
       setQuestionStartedAtMs(0);
       return;
@@ -222,19 +260,38 @@ export default function MockInterviewLabPage() {
       return;
     }
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setError("You must be logged in to use Mock Interview Lab.");
-      return;
-    }
-
-    const previousState = interviewState;
     const focusAreas = parseFocusAreas(form.focusAreas);
+    const previousState = interviewState;
+    const currentUser = auth.currentUser;
+    const localSession = buildLocalMockInterviewSession({
+      role,
+      interviewType: form.interviewType,
+      difficulty: form.difficulty,
+      company: form.company.trim(),
+      focusAreas,
+      jobDescription: form.jobDescription.trim(),
+      maxQuestions: Number(form.maxQuestions) || 4,
+      linkedResumeVersion: latestResumeVersion,
+      atsScore: latestResumeScore,
+      skillGaps,
+    });
 
     setStarting(true);
     setError("");
     setNotice("");
     setWarning("");
+
+    if (!currentUser) {
+      const nextState = startMockInterviewSession(previousState, localSession);
+      setLocalInterviewState(nextState);
+      setSelectedSessionId(localSession.id);
+      setAnswerDraft("");
+      setConfidenceLevel("medium");
+      setNotice(`Mock interview started for ${role}.`);
+      setWarning("Using local mock interview mode because you are not signed in.");
+      setStarting(false);
+      return;
+    }
 
     try {
       const token = await currentUser.getIdToken();
@@ -260,12 +317,22 @@ export default function MockInterviewLabPage() {
       setWarning(response?.warning || "");
       await saveMockInterviewState(currentUser.uid, nextState);
     } catch (requestError) {
-      setLocalInterviewState(previousState);
-      setError(
+      const nextState = startMockInterviewSession(previousState, localSession);
+      const fallbackMessage =
         requestError instanceof Error
-          ? requestError.message
-          : "Could not start the mock interview.",
-      );
+          ? `${requestError.message} Using local mock interview mode for this session.`
+          : "Could not reach the interview service. Using local mock interview mode for this session.";
+
+      setLocalInterviewState(nextState);
+      setSelectedSessionId(localSession.id);
+      setAnswerDraft("");
+      setConfidenceLevel("medium");
+      setNotice(`Mock interview started for ${role}.`);
+      setWarning(fallbackMessage);
+
+      if (currentUser?.uid) {
+        await saveMockInterviewState(currentUser.uid, nextState);
+      }
     } finally {
       setStarting(false);
     }
@@ -289,16 +356,17 @@ export default function MockInterviewLabPage() {
       return;
     }
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setError("You must be logged in to continue the interview.");
-      return;
-    }
-
     const previousState = interviewState;
     const timeTakenSeconds = questionStartedAtMs
       ? Math.max(0, Math.round((Date.now() - questionStartedAtMs) / 1000))
       : 0;
+    const currentUser = auth.currentUser;
+    const localResult = buildLocalMockInterviewAnswerResult({
+      session: activeSession,
+      answer: answerDraft.trim(),
+      confidenceLevel,
+      timeTakenSeconds,
+    });
 
     setScoring(true);
     setError("");
@@ -306,22 +374,42 @@ export default function MockInterviewLabPage() {
     setWarning("");
 
     try {
-      const token = await currentUser.getIdToken();
-      const response = await postServerJson("/mock-interview/answer", {
-        token,
-        body: {
-          session: activeSession,
-          answer: answerDraft.trim(),
-          confidenceLevel,
-          timeTakenSeconds,
-        },
-      });
+      let resultPayload = localResult;
+      let warningMessage = "";
 
-      const nextState = recordMockInterviewAnswer(previousState, activeSession.id, {
-        ...response.result,
-        confidenceLevel,
-        timeTakenSeconds,
-      });
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          const response = await postServerJson("/mock-interview/answer", {
+            token,
+            body: {
+              session: activeSession,
+              answer: answerDraft.trim(),
+              confidenceLevel,
+              timeTakenSeconds,
+            },
+          });
+          resultPayload = {
+            ...response.result,
+            confidenceLevel,
+            timeTakenSeconds,
+          };
+          warningMessage = response?.warning || "";
+        } catch (requestError) {
+          warningMessage =
+            requestError instanceof Error
+              ? `${requestError.message} Using local scoring for this answer.`
+              : "Could not reach the interview service. Using local scoring for this answer.";
+        }
+      } else {
+        warningMessage = "Using local scoring because you are not signed in.";
+      }
+
+      const nextState = recordMockInterviewAnswer(
+        previousState,
+        activeSession.id,
+        resultPayload,
+      );
       const updatedSession =
         nextState.sessions.find((session) => session.id === activeSession.id) || null;
 
@@ -329,13 +417,16 @@ export default function MockInterviewLabPage() {
       setSelectedSessionId(activeSession.id);
       setAnswerDraft("");
       setConfidenceLevel("medium");
-      setWarning(response?.warning || "");
+      setWarning(warningMessage);
       setNotice(
         updatedSession?.status === "completed"
           ? "Interview completed. The final feedback has been saved to Performance."
           : "Answer scored. Review the feedback and continue with the next question.",
       );
-      await saveMockInterviewState(currentUser.uid, nextState);
+
+      if (currentUser?.uid) {
+        await saveMockInterviewState(currentUser.uid, nextState);
+      }
     } catch (requestError) {
       setLocalInterviewState(previousState);
       setError(
@@ -1266,6 +1357,28 @@ function parseFocusAreas(value) {
       .map((item) => item.trim())
       .filter(Boolean),
   ).slice(0, 10);
+}
+
+function normalizeInterviewTypeValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "hr") {
+    return "hr";
+  }
+  if (normalized === "domain") {
+    return "domain";
+  }
+  return "technical";
+}
+
+function normalizeDifficultyValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "easy") {
+    return "easy";
+  }
+  if (normalized === "hard") {
+    return "hard";
+  }
+  return "medium";
 }
 
 function uniqueStrings(values) {

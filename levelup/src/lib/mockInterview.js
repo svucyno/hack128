@@ -185,6 +185,280 @@ export function recordMockInterviewAnswer(state, sessionId, resultPayload) {
   });
 }
 
+export function buildLocalMockInterviewSession({
+  role = "",
+  interviewType = "technical",
+  difficulty = "medium",
+  company = "",
+  focusAreas = [],
+  jobDescription = "",
+  maxQuestions = 4,
+  linkedResumeVersion = "",
+  atsScore = null,
+  skillGaps = [],
+}) {
+  const normalizedRole = truncateText(role || "Target role", 120);
+  const normalizedInterviewType = normalizeInterviewTypeValue(interviewType);
+  const normalizedDifficulty = normalizeDifficultyValue(difficulty);
+  const normalizedFocusAreas = normalizeStringArray(
+    Array.isArray(focusAreas) ? focusAreas : [],
+    10,
+    100,
+  );
+  const resolvedFocusAreas = normalizedFocusAreas.length
+    ? normalizedFocusAreas
+    : [normalizedRole];
+  const normalizedMaxQuestions = clampNumber(maxQuestions, 3, 6) || 4;
+  const sessionId = `mock_local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const nowIso = new Date().toISOString();
+
+  return normalizeSession({
+    id: sessionId,
+    role: normalizedRole,
+    interviewType: normalizedInterviewType,
+    difficulty: normalizedDifficulty,
+    company: truncateText(company || "", 120),
+    focusAreas: resolvedFocusAreas,
+    jobDescription: truncateText(jobDescription || "", 6000),
+    intro: buildLocalIntro({
+      role: normalizedRole,
+      interviewType: normalizedInterviewType,
+      company,
+    }),
+    guidance: buildLocalGuidance({
+      interviewType: normalizedInterviewType,
+      focusAreas: resolvedFocusAreas,
+    }),
+    questionPlan: buildLocalQuestionPlan({
+      interviewType: normalizedInterviewType,
+      focusAreas: resolvedFocusAreas,
+      maxQuestions: normalizedMaxQuestions,
+    }),
+    sessionContext: {
+      targetRole: normalizedRole,
+      linkedResumeVersion: truncateText(linkedResumeVersion || "", 180),
+      atsScore: clampNumber(atsScore, 0, 100),
+      skillGaps: normalizeStringArray(skillGaps, 10, 100),
+      focusAreas: resolvedFocusAreas,
+    },
+    currentQuestionIndex: 0,
+    maxQuestions: normalizedMaxQuestions,
+    status: "active",
+    currentPrompt: buildLocalPrompt({
+      role: normalizedRole,
+      interviewType: normalizedInterviewType,
+      difficulty: normalizedDifficulty,
+      company,
+      focusAreas: resolvedFocusAreas,
+      questionNumber: 1,
+      maxQuestions: normalizedMaxQuestions,
+    }),
+    turns: [],
+    summary: {},
+    startedAtIso: nowIso,
+    updatedAtIso: nowIso,
+    completedAtIso: "",
+  });
+}
+
+export function buildLocalMockInterviewAnswerResult({
+  session = {},
+  answer = "",
+  confidenceLevel = "medium",
+  timeTakenSeconds = 0,
+}) {
+  const normalizedSession = normalizeSession(session);
+  const currentPrompt = normalizePrompt(normalizedSession.currentPrompt);
+  const sanitizedAnswer = truncateText(answer || "", 3000);
+  const sanitizedConfidence = normalizeConfidenceLevel(confidenceLevel);
+  const normalizedTimeTakenSeconds = clampNumber(timeTakenSeconds, 0, 7200);
+  const answerWords = sanitizedAnswer.split(/\s+/).filter(Boolean);
+  const sentenceCount = sanitizedAnswer
+    .split(/[.!?]+/)
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+  const answerLower = sanitizedAnswer.toLowerCase();
+  const focusTerms = normalizeStringArray(
+    [
+      ...(currentPrompt.expectedFocus || []),
+      ...(normalizedSession.focusAreas || []),
+      normalizedSession.role,
+    ],
+    12,
+    80,
+  );
+  const matchedFocusCount = focusTerms.filter((term) =>
+    term
+      .toLowerCase()
+      .split(/\s+/)
+      .some((token) => token.length > 2 && answerLower.includes(token)),
+  ).length;
+  const hasExample =
+    /\b(example|for example|for instance|such as|imagine|when i|we built|in my project|in the classroom|students|users)\b/i.test(
+      sanitizedAnswer,
+    );
+  const hasStructuredFlow =
+    sentenceCount >= 3 ||
+    /\b(first|second|finally|because|therefore|step|then)\b/i.test(sanitizedAnswer);
+  const clarityScore = clampNumber(
+    8 +
+      Math.min(8, Math.round(answerWords.length / 18)) +
+      (hasStructuredFlow ? 4 : 0),
+    0,
+    20,
+  );
+  const conceptUnderstandingScore = clampNumber(
+    8 +
+      Math.min(9, matchedFocusCount * 3) +
+      Math.min(8, Math.round(answerWords.length / 28)),
+    0,
+    25,
+  );
+  const structureScore = clampNumber(
+    (hasStructuredFlow ? 9 : 5) + Math.min(6, Math.max(0, sentenceCount - 1)),
+    0,
+    15,
+  );
+  const practicalExamplesScore = clampNumber(
+    (hasExample ? 12 : 5) + Math.min(8, matchedFocusCount * 2),
+    0,
+    20,
+  );
+  const communicationScore = clampNumber(
+    (sanitizedConfidence === "high" ? 16 : sanitizedConfidence === "medium" ? 13 : 10) +
+      (answerWords.length >= 90 ? 3 : answerWords.length >= 45 ? 1 : 0) -
+      (answerWords.length < 25 ? 2 : 0),
+    0,
+    20,
+  );
+  const score = clampNumber(
+    clarityScore +
+      conceptUnderstandingScore +
+      structureScore +
+      practicalExamplesScore +
+      communicationScore,
+    0,
+    100,
+  );
+
+  const didWell = [];
+  const missingAreas = [];
+
+  if (clarityScore >= 14) {
+    didWell.push("Clear explanation with understandable wording");
+  } else {
+    missingAreas.push("Make the answer easier to follow from the first sentence");
+  }
+
+  if (conceptUnderstandingScore >= 17) {
+    didWell.push("Good coverage of the core concept and what the question was testing");
+  } else {
+    missingAreas.push("Connect the answer more directly to the main concept and expected focus");
+  }
+
+  if (structureScore >= 11) {
+    didWell.push("Logical flow with a visible beginning, middle, and close");
+  } else {
+    missingAreas.push("Use a stronger structure: intro, core idea, example, impact");
+  }
+
+  if (practicalExamplesScore >= 12) {
+    didWell.push("Used an applied example instead of only giving theory");
+  } else {
+    missingAreas.push("Add one concrete example, classroom scenario, or project-based proof point");
+  }
+
+  if (communicationScore < 13) {
+    missingAreas.push("Sound more confident and concise when delivering the main point");
+  }
+
+  const nextQuestionNumber = normalizedSession.turns.length + 2;
+  const shouldEnd = normalizedSession.turns.length + 1 >= normalizedSession.maxQuestions;
+  const nextPrompt = shouldEnd
+    ? createEmptyPrompt()
+    : buildLocalPrompt({
+        role: normalizedSession.role,
+        interviewType: normalizedSession.interviewType,
+        difficulty: normalizedSession.difficulty,
+        company: normalizedSession.company,
+        focusAreas: normalizedSession.focusAreas,
+        questionNumber: nextQuestionNumber,
+        maxQuestions: normalizedSession.maxQuestions,
+      });
+
+  const simulatedTurn = normalizeTurn({
+    questionId: currentPrompt.questionId,
+    questionType: currentPrompt.questionType,
+    question: currentPrompt.question,
+    evaluationCriteria: currentPrompt.evaluationCriteria,
+    answer: sanitizedAnswer,
+    timeTakenSeconds: normalizedTimeTakenSeconds,
+    confidenceLevel: sanitizedConfidence,
+    score,
+    clarityScore,
+    conceptUnderstandingScore,
+    structureScore,
+    practicalExamplesScore,
+    communicationScore,
+    didWell,
+    missingAreas,
+    idealAnswer: buildLocalIdealAnswer(currentPrompt, normalizedSession),
+    followUpQuestions: buildLocalFollowUps(currentPrompt, normalizedSession),
+    interviewerNote: buildLocalInterviewerNote(score, sanitizedConfidence, normalizedTimeTakenSeconds),
+    answeredAtIso: new Date().toISOString(),
+  });
+  const nextTurns = [...normalizedSession.turns, simulatedTurn];
+  const summary = shouldEnd
+    ? normalizeSummary(
+        {
+          averageScore: averageTurnScore(nextTurns),
+          overallScore: averageTurnScore(nextTurns),
+          totalScore: totalTurnScore(nextTurns),
+          hireSignal: inferHireSignal(averageTurnScore(nextTurns)),
+          summary: buildLocalSummaryText(normalizedSession, nextTurns),
+          strengths: collectTurnItems(nextTurns, "didWell", 8),
+          weaknesses: collectTurnItems(nextTurns, "missingAreas", 8),
+          topImprovementAreas: collectTurnItems(nextTurns, "missingAreas", 3),
+          recommendedPracticeTopics: collectTurnItems(nextTurns, "missingAreas", 5),
+          nextSteps: buildLocalNextSteps(nextTurns, normalizedSession),
+        },
+        nextTurns,
+      )
+    : {};
+
+  return {
+    questionId: currentPrompt.questionId,
+    questionType: currentPrompt.questionType,
+    question: currentPrompt.question,
+    evaluationCriteria: currentPrompt.evaluationCriteria,
+    answer: sanitizedAnswer,
+    timeTakenSeconds: normalizedTimeTakenSeconds,
+    confidenceLevel: sanitizedConfidence,
+    score,
+    clarityScore,
+    conceptUnderstandingScore,
+    structureScore,
+    practicalExamplesScore,
+    communicationScore,
+    feedback: buildFallbackFeedback({ didWell, missingAreas, score }),
+    didWell,
+    missingAreas,
+    idealAnswer: simulatedTurn.idealAnswer,
+    followUpQuestions: simulatedTurn.followUpQuestions,
+    interviewerNote: simulatedTurn.interviewerNote,
+    nextQuestionId: nextPrompt.questionId,
+    nextQuestionType: nextPrompt.questionType,
+    nextQuestion: nextPrompt.question,
+    nextEvaluationCriteria: nextPrompt.evaluationCriteria,
+    nextExpectedFocus: nextPrompt.expectedFocus,
+    nextQuestionHints: nextPrompt.hints,
+    shouldEnd,
+    answeredAtIso: simulatedTurn.answeredAtIso,
+    completedAtIso: shouldEnd ? simulatedTurn.answeredAtIso : "",
+    summary,
+  };
+}
+
 function normalizeSessions(sessions = []) {
   return (Array.isArray(sessions) ? sessions : [])
     .map((session) => normalizeSession(session))
@@ -390,6 +664,236 @@ function createEmptyPrompt() {
     expectedFocus: [],
     hints: [],
   };
+}
+
+function buildLocalQuestionPlan({ interviewType, focusAreas, maxQuestions }) {
+  const focusList = normalizeStringArray(focusAreas, 6, 100);
+  return Array.from({ length: maxQuestions }, (_, index) => {
+    const focus = focusList[index % Math.max(1, focusList.length)] || "role fundamentals";
+    if (interviewType === "hr") {
+      return truncateText(`Behavioral depth: ${focus}`, 120);
+    }
+    if (interviewType === "domain") {
+      return truncateText(`Teaching or domain drill: ${focus}`, 120);
+    }
+    return truncateText(`Technical applied reasoning: ${focus}`, 120);
+  });
+}
+
+function buildLocalPrompt({
+  role,
+  interviewType,
+  difficulty,
+  company,
+  focusAreas,
+  questionNumber,
+  maxQuestions,
+}) {
+  const focusList = normalizeStringArray(focusAreas, 8, 100);
+  const focus = focusList[(questionNumber - 1) % Math.max(1, focusList.length)] || role;
+  const questionType = selectLocalQuestionType({ role, interviewType, questionNumber });
+  const basePrompt = buildLocalQuestionText({
+    role,
+    interviewType,
+    questionType,
+    company,
+    focus,
+    questionNumber,
+    difficulty,
+  });
+
+  return normalizePrompt({
+    questionId: `question_${questionNumber}_${String(role || "role").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 6) || "prep"}`,
+    questionType,
+    question: basePrompt,
+    evaluationCriteria: [...DEFAULT_EVALUATION_CRITERIA],
+    expectedFocus: [focus, `${difficulty} depth`, `Question ${questionNumber} of ${maxQuestions}`],
+    hints: buildLocalHints(questionType, focus, role),
+  });
+}
+
+function selectLocalQuestionType({ role, interviewType, questionNumber }) {
+  if (interviewType === "hr") {
+    return questionNumber % 2 === 0 ? "Scenario-Based" : "Behavioral";
+  }
+  if (interviewType === "domain" || /\b(teacher|faculty|lecturer|trainer|tutor|educator)\b/i.test(role)) {
+    return questionNumber % 2 === 0 ? "Scenario-Based" : "Teaching Simulation";
+  }
+  return questionNumber % 2 === 0 ? "Problem Solving" : "Concept Explanation";
+}
+
+function buildLocalQuestionText({
+  role,
+  interviewType,
+  questionType,
+  company,
+  focus,
+  questionNumber,
+  difficulty,
+}) {
+  const companyText = company ? `${company} ` : "";
+
+  if (questionType === "Behavioral") {
+    return `For the ${companyText}${role} role, tell me about a time you showed ownership around ${focus}. What was the situation, what did you do, and what was the outcome?`;
+  }
+
+  if (questionType === "Teaching Simulation") {
+    return `Imagine you are teaching beginners in a ${companyText}${role} interview. Explain ${focus} in simple language, give one example, and show why it matters for learners.`;
+  }
+
+  if (questionType === "Scenario-Based") {
+    return `Scenario ${questionNumber}: in a ${companyText}${role} context, how would you handle a situation where ${focus} becomes the main challenge? Walk through your thinking and action plan.`;
+  }
+
+  if (questionType === "Problem Solving") {
+    return `Problem-solving round: how would you approach ${focus} for a ${companyText}${role} task at ${difficulty} difficulty? Explain the steps, tradeoffs, and how you would validate the outcome.`;
+  }
+
+  return `Explain ${focus} for the ${companyText}${role} role. Define it clearly, break down the main principles, and connect it to real execution.`;
+}
+
+function buildLocalHints(questionType, focus, role) {
+  if (questionType === "Behavioral") {
+    return [
+      "Use a situation, action, and result structure.",
+      "Add evidence, not only intention.",
+      `Connect the story back to ${role}.`,
+    ];
+  }
+
+  if (questionType === "Teaching Simulation") {
+    return [
+      "Teach in beginner-friendly language.",
+      "Use one simple example or analogy.",
+      `Explain why ${focus} matters in practice.`,
+    ];
+  }
+
+  return [
+    "Start with a simple introduction.",
+    `Cover the core idea behind ${focus}.`,
+    "Close with one real-world example or impact statement.",
+  ];
+}
+
+function buildLocalIntro({ role, interviewType, company }) {
+  return truncateText(
+    `${company ? `${company} ` : ""}${formatInterviewTypeLabel(interviewType)} practice for the ${role} role starts now. Answer with structure, examples, and role-specific judgment.`,
+    260,
+  );
+}
+
+function buildLocalGuidance({ interviewType, focusAreas }) {
+  const focus = normalizeStringArray(focusAreas, 3, 60).join(", ");
+  if (interviewType === "hr") {
+    return truncateText(
+      `Stay concrete. Use ownership, outcomes, and communication depth around ${focus || "your strongest examples"}.`,
+      320,
+    );
+  }
+  if (interviewType === "domain") {
+    return truncateText(
+      `Explain like you are already doing the role. Keep it simple, structured, and grounded in ${focus || "the learner's needs"}.`,
+      320,
+    );
+  }
+  return truncateText(
+    `Be explicit about steps, tradeoffs, and examples. Keep the answer anchored in ${focus || "practical execution"}.`,
+    320,
+  );
+}
+
+function buildLocalIdealAnswer(prompt, session) {
+  const focus = prompt.expectedFocus[0] || session.focusAreas[0] || session.role;
+  if (prompt.questionType === "Behavioral") {
+    return `Situation: frame the context around ${focus}. Action: explain the decision or ownership. Result: quantify the outcome. Learning: connect it back to the ${session.role} role.`;
+  }
+  if (prompt.questionType === "Teaching Simulation") {
+    return `Intro: explain ${focus} in simple terms. Core concept: define it clearly. Example: use one learner-friendly example. Impact: explain why it matters in a real class or teaching flow.`;
+  }
+  return `Intro: define ${focus}. Core idea: explain the main principles. Example: add one practical role-specific example. Impact: show why the answer matters in execution.`;
+}
+
+function buildLocalFollowUps(prompt, session) {
+  const focus = prompt.expectedFocus[0] || session.focusAreas[0] || session.role;
+  return normalizeStringArray(
+    [
+      `What is the biggest mistake people make when handling ${focus}?`,
+      `How would your answer change in a higher-pressure ${session.role} scenario?`,
+      `What evidence would you use to prove your approach around ${focus} actually worked?`,
+    ],
+    3,
+    240,
+  );
+}
+
+function buildLocalInterviewerNote(score, confidenceLevel, timeTakenSeconds) {
+  const paceSignal =
+    timeTakenSeconds > 240
+      ? "The answer took a long time to land."
+      : timeTakenSeconds < 25
+        ? "The answer was very fast and may have skipped depth."
+        : "The pacing was workable.";
+  return truncateText(
+    `${paceSignal} Confidence was ${confidenceLevel}. Overall signal is ${inferHireSignal(score).toLowerCase()}.`,
+    220,
+  );
+}
+
+function buildLocalSummaryText(session, turns) {
+  const average = averageTurnScore(turns);
+  return truncateText(
+    `This ${formatInterviewTypeLabel(session.interviewType).toLowerCase()} mock for ${session.role} finished at ${average}/100 average. The next lift is turning the same ideas into more structured, example-backed answers.`,
+    560,
+  );
+}
+
+function buildLocalNextSteps(turns, session) {
+  const missingAreas = collectTurnItems(turns, "missingAreas", 5);
+  const focusArea = session.focusAreas[0] || session.role;
+  return normalizeStringArray(
+    [
+      missingAreas[0]
+        ? `Practice one more answer focused on: ${missingAreas[0]}.`
+        : `Repeat one more mock question on ${focusArea}.`,
+      `Prepare one stronger example tied to the ${session.role} role.`,
+      `Run another ${formatInterviewTypeLabel(session.interviewType).toLowerCase()} session after reviewing the feedback trail.`,
+    ],
+    5,
+    180,
+  );
+}
+
+function normalizeInterviewTypeValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "hr") {
+    return "hr";
+  }
+  if (normalized === "domain") {
+    return "domain";
+  }
+  return "technical";
+}
+
+function normalizeDifficultyValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "easy") {
+    return "easy";
+  }
+  if (normalized === "hard") {
+    return "hard";
+  }
+  return "medium";
+}
+
+function formatInterviewTypeLabel(value) {
+  if (value === "hr") {
+    return "HR";
+  }
+  if (value === "domain") {
+    return "Domain";
+  }
+  return "Technical";
 }
 
 function normalizeSummary(candidate, turns = []) {

@@ -23,6 +23,7 @@ export default function WorkspaceLayout() {
   const processing = useWorkspaceStore((state) => state.processing);
   const calendarTasks = useWorkspaceStore((state) => state.calendarTasks);
   const jobApplications = useWorkspaceStore((state) => state.jobApplications);
+  const companyPrepPacks = useWorkspaceStore((state) => state.companyPrepPacks);
   const setUser = useWorkspaceStore((state) => state.setUser);
   const setProfile = useWorkspaceStore((state) => state.setProfile);
   const setProfileReady = useWorkspaceStore((state) => state.setProfileReady);
@@ -108,6 +109,7 @@ export default function WorkspaceLayout() {
         processing,
         calendarTasks,
         jobApplications,
+        companyPrepPacks,
         lastVisitedRoute: location.pathname,
       });
     const serializedSnapshot = JSON.stringify(workspaceSnapshot);
@@ -126,6 +128,7 @@ export default function WorkspaceLayout() {
     searchQuery,
     uploadedFiles,
     calendarTasks,
+    companyPrepPacks,
     jobApplications,
     user.uid,
   ]);

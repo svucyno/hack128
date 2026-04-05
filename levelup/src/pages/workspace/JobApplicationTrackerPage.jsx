@@ -12,10 +12,11 @@ import {
   Target,
   Trash2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import GlassCard from "../../components/workspace/GlassCard";
 import PageHeader from "../../components/workspace/PageHeader";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
+import { normalizeCompanyPrepPacks } from "../../lib/companyPrep";
 import { normalizeJobApplications } from "../../lib/userData";
 
 const STATUS_COLUMNS = [
@@ -130,11 +131,13 @@ const FIELD_STYLE = {
 };
 
 export default function JobApplicationTrackerPage() {
+  const navigate = useNavigate();
   const profile = useWorkspaceStore((state) => state.profile);
   const profileReady = useWorkspaceStore((state) => state.profileReady);
   const calendarTasks = useWorkspaceStore((state) => state.calendarTasks);
   const setCalendarTasks = useWorkspaceStore((state) => state.setCalendarTasks);
   const jobApplications = useWorkspaceStore((state) => state.jobApplications);
+  const companyPrepPacks = useWorkspaceStore((state) => state.companyPrepPacks);
   const setJobApplications = useWorkspaceStore((state) => state.setJobApplications);
 
   const resumeOverview = profile?.resumeOverview || {};
@@ -165,6 +168,18 @@ export default function JobApplicationTrackerPage() {
     ...(resumeOverview?.missingSkills || []),
   ]).slice(0, 10);
   const applications = normalizeJobApplications(jobApplications).sort(compareApplications);
+  const prepPackLookup = normalizeCompanyPrepPacks(companyPrepPacks)
+    .sort(
+      (left, right) =>
+        new Date(right.updatedAtIso || right.generatedAtIso || 0).getTime() -
+        new Date(left.updatedAtIso || left.generatedAtIso || 0).getTime(),
+    )
+    .reduce((lookup, pack) => {
+      if (pack.applicationId && !lookup.has(pack.applicationId)) {
+        lookup.set(pack.applicationId, pack);
+      }
+      return lookup;
+    }, new Map());
 
   const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
@@ -420,6 +435,16 @@ export default function JobApplicationTrackerPage() {
     }
   };
 
+  const handleOpenPrepPack = (application) => {
+    const existingPack = prepPackLookup.get(application.id) || null;
+    navigate("/workspace/company-prep", {
+      state: {
+        packId: existingPack?.id || "",
+        seed: buildCompanyPrepSeed(application),
+      },
+    });
+  };
+
   const handleStatusDrop = (status) => {
     if (!draggingId) {
       setDropStatus("");
@@ -590,6 +615,18 @@ export default function JobApplicationTrackerPage() {
             >
               <CalendarDays className="h-4 w-4" />
               Task Calendar
+            </Link>
+            <Link
+              to="/workspace/company-prep"
+              className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
+              style={{
+                borderColor: "var(--theme-border)",
+                background: "var(--theme-surface-0)",
+                color: "var(--theme-text-strong)",
+              }}
+            >
+              <Sparkles className="h-4 w-4" />
+              Company Prep
             </Link>
           </div>
         }
@@ -810,11 +847,13 @@ export default function JobApplicationTrackerPage() {
                     onDrop={() => handleStatusDrop(column.key)}
                     onEdit={handleEditApplication}
                     onDelete={handleDeleteApplication}
+                    onOpenPrep={handleOpenPrepPack}
                     onDragStart={(applicationId) => setDraggingId(applicationId)}
                     onDragEnd={() => {
                       setDraggingId("");
                       setDropStatus("");
                     }}
+                    getHasPrepPack={(applicationId) => prepPackLookup.has(applicationId)}
                   />
                 ))}
               </div>
@@ -1837,8 +1876,10 @@ function StatusColumn({
   onDrop,
   onEdit,
   onDelete,
+  onOpenPrep,
   onDragStart,
   onDragEnd,
+  getHasPrepPack,
 }) {
   return (
     <div
@@ -1881,8 +1922,10 @@ function StatusColumn({
               application={application}
               onEdit={onEdit}
               onDelete={onDelete}
+              onOpenPrep={onOpenPrep}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              hasPrepPack={getHasPrepPack(application.id)}
             />
           ))
         ) : (
@@ -1902,7 +1945,15 @@ function StatusColumn({
   );
 }
 
-function ApplicationCard({ application, onEdit, onDelete, onDragStart, onDragEnd }) {
+function ApplicationCard({
+  application,
+  onEdit,
+  onDelete,
+  onOpenPrep,
+  onDragStart,
+  onDragEnd,
+  hasPrepPack,
+}) {
   const nextRound = getNextPlannedRound(application);
   const linksAttached = getAttachedLinkCount(application);
   const readyChecklist = buildReadyChecklist(application);
@@ -2042,6 +2093,31 @@ function ApplicationCard({ application, onEdit, onDelete, onDragStart, onDragEnd
           )}
         </div>
       ) : null}
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenPrep(application);
+          }}
+          className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition hover:-translate-y-0.5"
+          style={{
+            borderColor: "rgba(239,68,68,0.2)",
+            background: "rgba(239,68,68,0.08)",
+            color: "var(--theme-text-strong)",
+          }}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          {hasPrepPack ? "Open Prep" : "Prep Pack"}
+        </button>
+
+        {hasPrepPack ? (
+          <div className="theme-text-muted text-[11px] font-semibold uppercase tracking-[0.16em]">
+            saved
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -2110,6 +2186,17 @@ function createEmptyForm({ defaultRole, defaultResumeVersion, defaultResumeScore
     taskSync: {
       ...TASK_SYNC_DEFAULTS,
     },
+  };
+}
+
+function buildCompanyPrepSeed(application) {
+  return {
+    applicationId: application.id,
+    company: application.company,
+    role: application.role,
+    jobDescription: application.jobDescription || "",
+    linkedResumeVersion: application.linkedResumeVersion || "",
+    linkedResumeScore: application.linkedResumeScore,
   };
 }
 

@@ -19,6 +19,7 @@ export const useWorkspaceStore = create((set) => ({
   processing: {},
   calendarTasks: [],
   jobApplications: [],
+  companyPrepPacks: [],
   setUser: (value) => set({ user: value }),
   setProfile: (value) => set({ profile: value }),
   setProfileReady: (value) => set({ profileReady: value }),
@@ -28,6 +29,8 @@ export const useWorkspaceStore = create((set) => ({
     set({ calendarTasks: Array.isArray(value) ? value : [] }),
   setJobApplications: (value) =>
     set({ jobApplications: Array.isArray(value) ? value : [] }),
+  setCompanyPrepPacks: (value) =>
+    set({ companyPrepPacks: Array.isArray(value) ? value : [] }),
   setUploadedFile: (key, file) =>
     set((state) => ({
       uploadedFiles: { ...state.uploadedFiles, [key]: file },
@@ -48,6 +51,9 @@ export const useWorkspaceStore = create((set) => ({
       jobApplications: Array.isArray(workspaceState.jobApplications)
         ? workspaceState.jobApplications
         : [],
+      companyPrepPacks: Array.isArray(workspaceState.companyPrepPacks)
+        ? workspaceState.companyPrepPacks
+        : [],
     }),
   resetWorkspaceState: () =>
     set({
@@ -57,5 +63,6 @@ export const useWorkspaceStore = create((set) => ({
       processing: {},
       calendarTasks: [],
       jobApplications: [],
+      companyPrepPacks: [],
     }),
 }));
