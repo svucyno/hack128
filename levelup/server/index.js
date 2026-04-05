@@ -28,6 +28,17 @@ import {
   runMockInterviewAnswer,
   runMockInterviewStart,
 } from "./mockInterview.js";
+import {
+  analyzeSkillGapMl,
+  getMlServiceBaseUrl,
+  getMlServiceStatus,
+  matchJobsMl,
+  parseResumeMl,
+  predictPerformanceMl,
+  predictRolesMl,
+  recommendCoursesMl,
+  scoreAtsMl,
+} from "./mlGateway.js";
 
 dotenv.config({ path: fileURLToPath(new URL("./.env", import.meta.url)) });
 
@@ -95,6 +106,14 @@ const getBearerToken = (authorizationHeader = "") => {
   }
 
   return authorizationHeader.slice("Bearer ".length).trim();
+};
+
+const respondMlError = (label, error, res) => {
+  console.error(`${label} error:`, error);
+  res.status(error?.status || 503).json({
+    error: error?.message || `${label} request failed.`,
+    service: getMlServiceBaseUrl(),
+  });
 };
 
 app.post("/otp/request", async (req, res) => {
@@ -571,6 +590,130 @@ app.post("/mock-interview/answer", async (req, res) => {
   }
 });
 
+app.get("/ml/status", async (req, res) => {
+  try {
+    const result = await getMlServiceStatus();
+    res.json({
+      ok: true,
+      service: getMlServiceBaseUrl(),
+      ...result,
+    });
+  } catch (error) {
+    respondMlError("ML status", error, res);
+  }
+});
+
+app.post("/ml/resume/parse", async (req, res) => {
+  const { resumeText = "", fileName = "Resume" } = req.body || {};
+  if (!String(resumeText || "").trim()) {
+    return res.status(400).json({ error: "resumeText is required." });
+  }
+
+  try {
+    const result = await parseResumeMl({
+      resume_text: resumeText,
+      file_name: fileName,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML resume parse", error, res);
+  }
+});
+
+app.post("/ml/ats/score", async (req, res) => {
+  const { resumeText = "", jobDescription = "" } = req.body || {};
+  if (!String(resumeText || "").trim() || !String(jobDescription || "").trim()) {
+    return res.status(400).json({ error: "resumeText and jobDescription are required." });
+  }
+
+  try {
+    const result = await scoreAtsMl({
+      resume_text: resumeText,
+      job_description: jobDescription,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML ATS score", error, res);
+  }
+});
+
+app.post("/ml/roles/predict", async (req, res) => {
+  const { skills = [], education = "", interests = [] } = req.body || {};
+  try {
+    const result = await predictRolesMl({
+      skills,
+      education,
+      interests,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML role prediction", error, res);
+  }
+});
+
+app.post("/ml/skills/gap", async (req, res) => {
+  const { userSkills = [], targetRole = "" } = req.body || {};
+  if (!String(targetRole || "").trim()) {
+    return res.status(400).json({ error: "targetRole is required." });
+  }
+
+  try {
+    const result = await analyzeSkillGapMl({
+      user_skills: userSkills,
+      target_role: targetRole,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML skill gap", error, res);
+  }
+});
+
+app.post("/ml/jobs/match", async (req, res) => {
+  const { resumeText = "", targetRoles = [], location = "" } = req.body || {};
+  if (!String(resumeText || "").trim()) {
+    return res.status(400).json({ error: "resumeText is required." });
+  }
+
+  try {
+    const result = await matchJobsMl({
+      resume_text: resumeText,
+      target_roles: targetRoles,
+      location,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML job match", error, res);
+  }
+});
+
+app.post("/ml/performance/predict", async (req, res) => {
+  try {
+    const result = await predictPerformanceMl(req.body || {});
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML performance prediction", error, res);
+  }
+});
+
+app.post("/ml/recommendations/courses", async (req, res) => {
+  const {
+    targetRole = "",
+    userSkills = [],
+    missingSkills = [],
+  } = req.body || {};
+
+  try {
+    const result = await recommendCoursesMl({
+      target_role: targetRole,
+      user_skills: userSkills,
+      missing_skills: missingSkills,
+    });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    respondMlError("ML course recommendations", error, res);
+  }
+});
+
 app.listen(PORT, () => {
   if (!resendKey) {
     console.warn("RESEND_API_KEY is missing. Email endpoints will return 500 until it is configured.");
@@ -578,5 +721,6 @@ app.listen(PORT, () => {
   if (!process.env.GEMINI_API_KEY) {
     console.warn("GEMINI_API_KEY is missing. Career guidance and resume analyzer will use fallback logic.");
   }
+  console.log(`ML gateway target: ${getMlServiceBaseUrl()}`);
   console.log(`OTP server running on http://localhost:${PORT}`);
 });

@@ -12,11 +12,14 @@ import {
 } from "lucide-react";
 import { push, ref, serverTimestamp, set, update } from "firebase/database";
 import { useNavigate } from "react-router-dom";
+import MlStatusNotice from "../../components/workspace/MlStatusNotice";
 import { auth, db } from "../../firebase";
+import { useMlServiceStatus } from "../../hooks/useMlServiceStatus";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
 import {
   RESUME_PROCESSING_STEPS,
   buildHistorySnapshot,
+  mergeMlSignalsIntoReport,
   buildOverviewPayload,
   buildResumeDraftPayload,
   countWords,
@@ -26,6 +29,13 @@ import {
 } from "../../lib/resumeAnalysis";
 import { isResumeOwnedByLoggedInUser } from "../../lib/resumeIdentity";
 import { postServerJson } from "../../lib/serverApi";
+import {
+  analyzeSkillGapMl,
+  getMlStatus,
+  parseResumeMl,
+  predictRolesMl,
+  scoreResumeAtsMl,
+} from "../../services/mlApi";
 import { saveResumeWorkspaceState, toFileMetadata } from "../../lib/userData";
 import { analyzeResume } from "../../resumeAI/utils/atsEngine";
 import { parseResumeInput } from "../../resumeAI/utils/resumeParser";
@@ -47,6 +57,7 @@ export default function ResumeAnalyzerPage() {
   const [processingStepIndex, setProcessingStepIndex] = useState(0);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
+  const mlStatus = useMlServiceStatus();
   const hydratedRef = useRef(false);
   const lastDraftRef = useRef("");
 
@@ -307,6 +318,122 @@ export default function ResumeAnalyzerPage() {
 
       let report = hydrateAnalysisWithAiInsights(localReport, baseContext);
       let runtimeWarning = "";
+      let mlResumeParse = null;
+      let mlAtsScore = null;
+      let mlRolePrediction = null;
+      let mlSkillGap = null;
+      let mlAvailable = false;
+
+      try {
+        await getMlStatus();
+        mlAvailable = true;
+      } catch (mlError) {
+        console.error("ML status error:", mlError);
+        runtimeWarning = mergeWarnings(
+          runtimeWarning,
+          mlError instanceof Error
+            ? `${mlError.message} ML services are unavailable for this run, so Resume Analyzer is using the built-in engine.`
+            : "ML services are unavailable for this run, so Resume Analyzer is using the built-in engine.",
+        );
+      }
+
+      if (mlAvailable) {
+        try {
+          mlResumeParse = await parseResumeMl({
+            resumeText: parsed.text,
+            fileName: parsed.fileName,
+          });
+        } catch (mlError) {
+          console.error("ML resume parse error:", mlError);
+          mlAvailable = false;
+          runtimeWarning = mergeWarnings(
+            runtimeWarning,
+            mlError instanceof Error
+              ? `${mlError.message} ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.`
+              : "ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.",
+          );
+        }
+      }
+
+      if (mlAvailable && jobDescription.trim()) {
+        try {
+          mlAtsScore = await scoreResumeAtsMl({
+            resumeText: parsed.text,
+            jobDescription,
+          });
+        } catch (mlError) {
+          console.error("ML ATS score error:", mlError);
+          mlAvailable = false;
+          runtimeWarning = mergeWarnings(
+            runtimeWarning,
+            mlError instanceof Error
+              ? `${mlError.message} ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.`
+              : "ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.",
+          );
+        }
+      }
+
+      const roleSkills =
+        mlResumeParse?.skills?.length ? mlResumeParse.skills : localReport.extractedSkills || [];
+      const educationSignal =
+        mlResumeParse?.education?.[0]?.degree ||
+        localReport.extractedUser?.educationLevel ||
+        "";
+
+      if (mlAvailable && roleSkills.length) {
+        try {
+          mlRolePrediction = await predictRolesMl({
+            skills: roleSkills,
+            education: educationSignal,
+            interests: [],
+          });
+        } catch (mlError) {
+          console.error("ML role prediction error:", mlError);
+          mlAvailable = false;
+          runtimeWarning = mergeWarnings(
+            runtimeWarning,
+            mlError instanceof Error
+              ? `${mlError.message} ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.`
+              : "ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.",
+          );
+        }
+      }
+
+      const predictedTopRole =
+        mlRolePrediction?.top_role ||
+        mlRolePrediction?.predictions?.[0]?.role ||
+        localReport.jobMatches?.[0]?.role ||
+        "";
+
+      if (mlAvailable && predictedTopRole && roleSkills.length) {
+        try {
+          mlSkillGap = await analyzeSkillGapMl({
+            userSkills: roleSkills,
+            targetRole: predictedTopRole,
+          });
+        } catch (mlError) {
+          console.error("ML skill gap error:", mlError);
+          mlAvailable = false;
+          runtimeWarning = mergeWarnings(
+            runtimeWarning,
+            mlError instanceof Error
+              ? `${mlError.message} ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.`
+              : "ML services are unavailable for the rest of this run, so Resume Analyzer is using the built-in engine.",
+          );
+        }
+      }
+
+      if (mlResumeParse || mlAtsScore || mlRolePrediction || mlSkillGap) {
+        report = hydrateAnalysisWithAiInsights(
+          mergeMlSignalsIntoReport(localReport, {
+            resumeParse: mlResumeParse,
+            atsScore: mlAtsScore,
+            rolePrediction: mlRolePrediction,
+            skillGap: mlSkillGap,
+          }),
+          baseContext,
+        );
+      }
 
       const currentUser = auth.currentUser;
       if (currentUser) {
@@ -321,8 +448,14 @@ export default function ResumeAnalyzerPage() {
             },
           });
 
-          if (response?.report && typeof response.report === "object") {
-            report = hydrateAnalysisWithAiInsights(response.report, baseContext);
+          if (response?.report?.aiInsights) {
+            report = hydrateAnalysisWithAiInsights(
+              {
+                ...report,
+                aiInsights: response.report.aiInsights,
+              },
+              baseContext,
+            );
           }
 
           if (response?.warning) {
@@ -333,15 +466,10 @@ export default function ResumeAnalyzerPage() {
           runtimeWarning = mergeWarnings(
             runtimeWarning,
             serverError instanceof Error
-              ? `${serverError.message} Using the built-in ATS engine for this run.`
-              : "Gemini enhancement was unavailable. Using the built-in ATS engine for this run.",
+              ? `${serverError.message} Using ML and the built-in ATS engine for this run.`
+              : "Gemini enhancement was unavailable. Using ML and the built-in ATS engine for this run.",
           );
         }
-      } else {
-        runtimeWarning = mergeWarnings(
-          runtimeWarning,
-          "Sign in to use Gemini enhancement. The current report uses the built-in ATS engine only.",
-        );
       }
 
       const identityMatched = isResumeOwnedByLoggedInUser(
@@ -430,6 +558,16 @@ export default function ResumeAnalyzerPage() {
             open the complete ATS dashboard on the next page.
           </p>
         </div>
+
+        <MlStatusNotice
+          checked={mlStatus.checked}
+          online={mlStatus.online}
+          serviceName={mlStatus.serviceName}
+          error={mlStatus.error}
+          onlineMessage="ML parsing, ATS scoring, role prediction, and skill-gap analysis are active."
+          offlineMessage="ML service is offline. Resume Analyzer will fall back to the built-in analyzer until it comes back."
+          className="mt-6"
+        />
 
         <div className="resume-card resume-fade-up resume-stagger-1 mt-6 p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">

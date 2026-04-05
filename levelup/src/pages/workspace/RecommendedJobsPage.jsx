@@ -13,13 +13,17 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import GlassCard from "../../components/workspace/GlassCard";
+import MlStatusNotice from "../../components/workspace/MlStatusNotice";
 import PageHeader from "../../components/workspace/PageHeader";
+import { useMlServiceStatus } from "../../hooks/useMlServiceStatus";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
 import {
   buildRecommendedJobs,
   buildTrackerApplicationFromJob,
+  mergeMlJobMatches,
 } from "../../lib/jobRecommendations";
 import { normalizeJobApplications } from "../../lib/userData";
+import { matchJobsMl } from "../../services/mlApi";
 
 const FIELD_CLASS =
   "w-full rounded-[22px] border px-4 py-3 text-sm outline-none transition focus:scale-[1.005]";
@@ -57,6 +61,7 @@ export default function RecommendedJobsPage() {
   const resumeOverview = profile?.resumeOverview || {};
   const resumeWorkspace = profile?.resumeWorkspace || {};
   const latestReport = resumeWorkspace?.latestAnalysis?.report || null;
+  const latestResumeText = String(resumeWorkspace?.latestAnalysis?.rawResumeText || "").trim();
   const latestTargetRole = String(
     guidance.latestTargetRole ||
       guidance.latestRecommendedRoles?.[0]?.role ||
@@ -124,6 +129,9 @@ export default function RecommendedJobsPage() {
     source: "",
   });
   const [notice, setNotice] = useState("");
+  const [mlRecommendations, setMlRecommendations] = useState(null);
+  const [mlWarning, setMlWarning] = useState("");
+  const mlStatus = useMlServiceStatus();
 
   useEffect(() => {
     setFilters((current) => {
@@ -137,7 +145,7 @@ export default function RecommendedJobsPage() {
     });
   }, [latestTargetRole]);
 
-  const recommendations = useMemo(
+  const localRecommendations = useMemo(
     () =>
       buildRecommendedJobs({
         targetRole: filters.role || latestTargetRole,
@@ -161,6 +169,64 @@ export default function RecommendedJobsPage() {
       suggestedRoles,
     ],
   );
+  useEffect(() => {
+    if (!mlStatus.checked) {
+      return undefined;
+    }
+
+    if (!mlStatus.online || !latestResumeText) {
+      setMlRecommendations(null);
+      setMlWarning("");
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadMlRecommendations() {
+      try {
+        const response = await matchJobsMl({
+          resumeText: latestResumeText,
+          targetRoles: uniqueStrings([filters.role || latestTargetRole, ...suggestedRoles]).slice(
+            0,
+            8,
+          ),
+          location: filters.location,
+        });
+
+        if (!active) {
+          return;
+        }
+
+        setMlRecommendations(mergeMlJobMatches(localRecommendations, response?.matches || []));
+        setMlWarning("");
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setMlRecommendations(null);
+        setMlWarning(
+          `${error?.message || "ML job matching failed."} Showing the built-in recommendation feed instead.`,
+        );
+      }
+    }
+
+    void loadMlRecommendations();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    filters.location,
+    filters.role,
+    latestResumeText,
+    latestTargetRole,
+    localRecommendations,
+    mlStatus.checked,
+    mlStatus.online,
+    suggestedRoles,
+  ]);
+
+  const recommendations = mlRecommendations || localRecommendations;
   const allJobs = recommendations.allJobs;
   const targetRoleMatches = recommendations.targetRoleMatches;
   const profileMatches = recommendations.profileMatches;
@@ -168,6 +234,7 @@ export default function RecommendedJobsPage() {
   const remoteCount = allJobs.filter((job) => job.workMode === "remote").length;
   const upcomingDeadlines = allJobs.filter((job) => daysUntil(job.deadline) <= 7).length;
   const strongestMatch = allJobs[0] || null;
+  const mlRankingActive = Boolean(mlRecommendations && mlStatus.online && latestResumeText);
 
   const handleFilterChange = (field, value) => {
     setFilters((current) => ({
@@ -323,6 +390,21 @@ export default function RecommendedJobsPage() {
         />
       </div>
 
+      <MlStatusNotice
+        checked={mlStatus.checked}
+        online={mlStatus.online}
+        serviceName={mlStatus.serviceName}
+        error={mlStatus.error}
+        onlineMessage={
+          latestResumeText
+            ? mlRankingActive
+              ? "ML ranking is active for this job feed."
+              : "ML service is online. Loading ML-ranked recommendations from your latest resume."
+            : "ML service is online. Analyze a resume to unlock ML-ranked job matching."
+        }
+        offlineMessage="ML job matching is offline. Showing the built-in recommendation feed instead."
+      />
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_360px]">
         <div className="space-y-6">
           <GlassCard className="p-5 sm:p-6">
@@ -438,6 +520,19 @@ export default function RecommendedJobsPage() {
                 }}
               >
                 {notice}
+              </div>
+            ) : null}
+
+            {mlWarning ? (
+              <div
+                className="mt-4 rounded-[22px] border px-4 py-3 text-sm"
+                style={{
+                  borderColor: "rgba(250,204,21,0.24)",
+                  background: "rgba(250,204,21,0.1)",
+                  color: "var(--theme-text-strong)",
+                }}
+              >
+                {mlWarning}
               </div>
             ) : null}
           </GlassCard>

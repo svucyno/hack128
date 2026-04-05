@@ -1,0 +1,166 @@
+{
+  "jobs": [
+    {
+      "job_id": "zoho-frontend-engineer",
+      "company": "Zoho",
+      "role": "Frontend Engineer",
+      "location": "Chennai",
+      "work_mode": "Hybrid",
+      "skills": ["React", "JavaScript", "TypeScript", "HTML", "CSS", "Responsive Design", "REST APIs"],
+      "description": "Build user-facing product surfaces, improve UI performance, and ship reusable React and TypeScript components for high-traffic workflows."
+    },
+    {
+      "job_id": "freshworks-product-engineer",
+      "company": "Freshworks",
+      "role": "Product Engineer",
+      "location": "Chennai",
+      "work_mode": "Hybrid",
+      "skills": ["JavaScript", "React", "Node.js", "APIs", "Testing", "Debugging"],
+      "description": "Own end-to-end product workflows, collaborate with design, and improve feature quality from UI to API handoff."
+    },
+    {
+      "job_id": "razorpay-full-stack",
+      "company": "Razorpay",
+      "role": "Full Stack Developer",
+      "location": "Bengaluru",
+      "work_mode": "Hybrid",
+      "skills": ["React", "Node.js", "SQL", "REST APIs", "Authentication", "System Design"],
+      "description": "Ship user-facing product flows backed by scalable services, auth patterns, and data-heavy dashboards."
+    },
+    {
+      "job_id": "tcs-web-developer",
+      "company": "TCS",
+      "role": "Web Developer",
+      "location": "Hyderabad",
+      "work_mode": "On-site",
+      "skills": ["HTML", "CSS", "JavaScript", "React", "Git", "Responsive Design"],
+      "description": "Support enterprise web delivery, build responsive UI modules, and work within structured delivery teams."
+    },
+    {
+      "job_id": "paytm-software-engineer",
+      "company": "Paytm",
+      "role": "Software Engineer",
+      "location": "Noida",
+      "work_mode": "Hybrid",
+      "skills": ["JavaScript", "React", "Node.js", "Data Structures", "APIs", "Debugging"],
+      "description": "Build merchant product experiences, debug production issues, and contribute to fast-moving commerce flows."
+    },
+    {
+      "job_id": "deloitte-data-analyst",
+      "company": "Deloitte",
+      "role": "Data Analyst",
+      "location": "Hyderabad",
+      "work_mode": "Hybrid",
+      "skills": ["SQL", "Excel", "Python", "Data Visualization", "Statistics", "Communication"],
+      "description": "Translate business questions into dashboards, insights, and stakeholder-ready analysis packs."
+    },
+    {
+      "job_id": "accenture-analyst",
+      "company": "Accenture",
+      "role": "Analyst",
+      "location": "Bengaluru",
+      "work_mode": "On-site",
+      "skills": ["Communication", "Problem Solving", "SQL", "JavaScript", "Excel"],
+      "description": "Work on consulting delivery, analyze workflows, and support structured problem solving across teams."
+    },
+    {
+      "job_id": "vedantu-math-teacher",
+      "company": "Vedantu",
+      "role": "Math Teacher",
+      "location": "Remote",
+      "work_mode": "Remote",
+      "skills": ["Teaching", "Lesson Planning", "Classroom Management", "Communication", "Assessment Design"],
+      "description": "Deliver live classes, simplify concepts for beginners, and maintain strong student engagement and assessment quality."
+    },
+    {
+      "job_id": "physics-wallah-subject-teacher",
+      "company": "Physics Wallah",
+      "role": "Science Teacher",
+      "location": "Noida",
+      "work_mode": "Hybrid",
+      "skills": ["Teaching", "Lesson Planning", "Curriculum Design", "Student Engagement", "Communication"],
+      "description": "Teach high-volume learner batches, run demo sessions, and create effective teaching plans for exam-oriented programs."
+    },
+    {
+      "job_id": "teachmint-academic-coordinator",
+      "company": "Teachmint",
+      "role": "Academic Coordinator",
+      "location": "Bengaluru",
+      "work_mode": "Hybrid",
+      "skills": ["Teaching", "Curriculum Design", "Planning", "Stakeholder Communication", "Documentation"],
+      "description": "Coordinate faculty operations, align delivery plans, and improve learning quality through structured execution."
+    },
+    {
+      "job_id": "unacademy-teaching-fellow",
+      "company": "Unacademy",
+      "role": "Teaching Fellow",
+      "location": "Remote",
+      "work_mode": "Remote",
+      "skills": ["Teaching", "Communication", "Lesson Planning", "Presentation", "Student Support"],
+      "description": "Support online teaching programs, explain concepts simply, and build confidence through structured live delivery."
+    },
+    {
+      "job_id": "chegg-subject-expert",
+      "company": "Chegg",
+      "role": "Subject Expert",
+      "location": "Remote",
+      "work_mode": "Remote",
+      "skills": ["Subject Expertise", "Communication", "Problem Solving", "Teaching", "Documentation"],
+      "description": "Resolve learner doubts, explain concepts clearly, and provide reliable written academic support."
+    },
+    {
+      "job_id": "infosys-systems-engineer",
+      "company": "Infosys",
+      "role": "Systems Engineer",
+      "location": "Mysuru",
+      "work_mode": "On-site",
+      "skills": ["JavaScript", "Problem Solving", "SQL", "Programming Fundamentals", "Communication"],
+      "description": "Join structured technology teams, work on enterprise engineering tasks, and grow into role-specific delivery tracks."
+    },
+    {
+      "job_id": "cognizant-programmer-analyst",
+      "company": "Cognizant",
+      "role": "Programmer Analyst",
+      "location": "Pune",
+      "work_mode": "Hybrid",
+      "skills": ["JavaScript", "React", "SQL", "Testing", "Problem Solving"],
+      "description": "Work on modern delivery teams, contribute to UI and data flows, and support testing and release quality."
+    },
+    {
+      "job_id": "tata-elxsi-ui-developer",
+      "company": "Tata Elxsi",
+      "role": "UI Developer",
+      "location": "Bengaluru",
+      "work_mode": "Hybrid",
+      "skills": ["HTML", "CSS", "JavaScript", "React", "Design Systems", "Accessibility"],
+      "description": "Turn design systems into production interfaces, improve accessibility, and refine interaction quality across products."
+    },
+    {
+      "job_id": "hcl-cloud-support",
+      "company": "HCLTech",
+      "role": "Cloud Support Associate",
+      "location": "Noida",
+      "work_mode": "On-site",
+      "skills": ["AWS", "Linux", "Networking", "Troubleshooting", "Documentation"],
+      "description": "Support cloud workloads, troubleshoot infra issues, and manage basic service reliability and documentation flows."
+    },
+    {
+      "job_id": "publicis-content-strategist",
+      "company": "Publicis Sapient",
+      "role": "Content Strategist",
+      "location": "Gurugram",
+      "work_mode": "Hybrid",
+      "skills": ["Communication", "Content Writing", "Curriculum Design", "Research", "Presentation"],
+      "description": "Create structured learning content, simplify complex ideas, and support engagement through strong narrative design."
+    },
+    {
+      "job_id": "mu-sigma-decision-scientist",
+      "company": "Mu Sigma",
+      "role": "Decision Scientist",
+      "location": "Bengaluru",
+      "work_mode": "On-site",
+      "skills": ["SQL", "Python", "Statistics", "Problem Solving", "Communication"],
+      "description": "Solve business problems with data, communicate recommendations clearly, and turn analysis into decisions."
+    }
+  ]
+}

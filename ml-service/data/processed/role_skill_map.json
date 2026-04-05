@@ -1,0 +1,32 @@
+{
+  "Frontend Developer": {
+    "skills": ["HTML", "CSS", "JavaScript", "React", "TypeScript", "Git", "REST API", "Testing"],
+    "interest_keywords": ["frontend", "ui", "web", "react"],
+    "education_keywords": ["computer", "cse", "it"]
+  },
+  "Full Stack Developer": {
+    "skills": ["HTML", "CSS", "JavaScript", "React", "Node.js", "Express.js", "SQL", "MongoDB", "REST API", "Git"],
+    "interest_keywords": ["full stack", "backend", "web", "api"],
+    "education_keywords": ["computer", "cse", "it"]
+  },
+  "Data Analyst": {
+    "skills": ["Python", "SQL", "Excel", "Power BI", "Tableau", "Data Analysis", "Communication"],
+    "interest_keywords": ["analytics", "data", "dashboard", "sql"],
+    "education_keywords": ["computer", "statistics", "data", "math"]
+  },
+  "Machine Learning Engineer": {
+    "skills": ["Python", "Machine Learning", "Pandas", "NumPy", "TensorFlow", "SQL", "Data Analysis"],
+    "interest_keywords": ["machine learning", "ai", "ml", "data science"],
+    "education_keywords": ["computer", "cse", "data", "ai"]
+  },
+  "Backend Developer": {
+    "skills": ["Node.js", "Express.js", "Python", "SQL", "PostgreSQL", "MongoDB", "REST API", "Docker", "System Design"],
+    "interest_keywords": ["backend", "api", "server", "systems"],
+    "education_keywords": ["computer", "cse", "it"]
+  },
+  "Teacher": {
+    "skills": ["Teaching", "Lesson Planning", "Curriculum Design", "Classroom Management", "Communication", "Leadership"],
+    "interest_keywords": ["teaching", "education", "classroom", "curriculum"],
+    "education_keywords": ["education", "arts", "science", "b.ed"]
+  }
+}

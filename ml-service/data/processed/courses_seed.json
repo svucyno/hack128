@@ -1,0 +1,40 @@
+{
+  "courses": [
+    {
+      "title": "React and TypeScript Foundations",
+      "provider": "LevelUp Academy",
+      "level": "Intermediate",
+      "skills": ["React", "TypeScript", "Testing"]
+    },
+    {
+      "title": "Node.js API Development Bootcamp",
+      "provider": "LevelUp Academy",
+      "level": "Intermediate",
+      "skills": ["Node.js", "Express.js", "REST API", "MongoDB"]
+    },
+    {
+      "title": "SQL for Product and Data Roles",
+      "provider": "LevelUp Academy",
+      "level": "Beginner",
+      "skills": ["SQL", "PostgreSQL", "Data Analysis"]
+    },
+    {
+      "title": "Machine Learning Starter Path",
+      "provider": "LevelUp Academy",
+      "level": "Intermediate",
+      "skills": ["Python", "Machine Learning", "Pandas", "NumPy"]
+    },
+    {
+      "title": "System Design for Interviews",
+      "provider": "LevelUp Academy",
+      "level": "Advanced",
+      "skills": ["System Design", "REST API", "Docker"]
+    },
+    {
+      "title": "Teaching Excellence Toolkit",
+      "provider": "LevelUp Academy",
+      "level": "Intermediate",
+      "skills": ["Teaching", "Lesson Planning", "Curriculum Design", "Classroom Management"]
+    }
+  ]
+}

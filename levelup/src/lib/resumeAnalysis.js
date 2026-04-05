@@ -73,6 +73,157 @@ export function hydrateAnalysisWithAiInsights(analysis, context) {
   };
 }
 
+export function mergeMlSignalsIntoReport(
+  baseReport,
+  {
+    resumeParse = null,
+    atsScore = null,
+    rolePrediction = null,
+    skillGap = null,
+  } = {},
+) {
+  const report = normalizeAnalysisReport(baseReport);
+  const predictedRoles = Array.isArray(rolePrediction?.predictions)
+    ? rolePrediction.predictions
+    : [];
+  const primaryGap = skillGap && typeof skillGap === "object" ? skillGap : null;
+
+  const extractedUser = {
+    ...report.extractedUser,
+    name: String(resumeParse?.name || report.extractedUser.name || "Candidate").trim(),
+    email: String(resumeParse?.email || report.extractedUser.email || "Not found").trim(),
+    phone: String(resumeParse?.phone || report.extractedUser.phone || "Not found").trim(),
+    experienceLevel: String(
+      resumeParse?.experience_level || report.extractedUser.experienceLevel || "Not specified",
+    ).trim(),
+    educationLevel: String(
+      resumeParse?.education?.[0]?.degree ||
+        report.extractedUser.educationLevel ||
+        "Not specified",
+    ).trim(),
+  };
+
+  const extractedSkills = uniqueStrings(
+    Array.isArray(resumeParse?.skills) && resumeParse.skills.length
+      ? resumeParse.skills
+      : report.extractedSkills,
+  );
+
+  const missingSkills = uniqueStrings([
+    ...(Array.isArray(primaryGap?.missing_skills) ? primaryGap.missing_skills : []),
+    ...(Array.isArray(atsScore?.missing_skills) ? atsScore.missing_skills : []),
+    ...report.missingSkills,
+  ]);
+
+  const jobMatches = predictedRoles.length
+    ? predictedRoles.map((prediction, index) => {
+        const predictedRoleName = String(prediction?.role || "").trim();
+        const isPrimaryRole =
+          primaryGap?.target_role &&
+          String(primaryGap.target_role).trim().toLowerCase() === predictedRoleName.toLowerCase();
+
+        return {
+          role: predictedRoleName,
+          summary:
+            index === 0
+              ? `${predictedRoleName} is the strongest ML role fit from your extracted skills and education signals.`
+              : `${predictedRoleName} is also a viable direction based on your current skill stack.`,
+          match: normalizeScore(Number(prediction?.score || 0) * 100),
+          focusAreas: uniqueStrings(
+            isPrimaryRole
+              ? primaryGap?.required_skills || []
+              : extractedSkills.slice(0, 6),
+          ).slice(0, 6),
+          improvementPlan: uniqueStrings(
+            isPrimaryRole
+              ? (primaryGap?.priority_skills || []).map(
+                  (item) => `Build stronger evidence for ${item}.`,
+                )
+              : atsScore?.suggestions || report.suggestions,
+          ).slice(0, 4),
+          careerRecommendations: uniqueStrings(rolePrediction?.explanation || []).slice(0, 4),
+          missingSkills: uniqueStrings(
+            isPrimaryRole
+              ? primaryGap?.missing_skills || []
+              : atsScore?.missing_skills || report.missingSkills,
+          ).slice(0, 6),
+          matchedSkills: uniqueStrings(
+            isPrimaryRole
+              ? primaryGap?.matched_skills || []
+              : atsScore?.matched_skills || extractedSkills,
+          ).slice(0, 6),
+        };
+      })
+    : report.jobMatches;
+
+  const jdComparison =
+    atsScore && (Array.isArray(atsScore?.matched_keywords) || Array.isArray(atsScore?.missing_keywords))
+      ? {
+          score: normalizeScore(
+            Math.round(
+              ((Number(atsScore.keyword_match_score || 0) +
+                Number(atsScore.semantic_match_score || 0)) /
+                2),
+            ),
+          ),
+          matchedKeywords: uniqueStrings(atsScore.matched_keywords || []).slice(0, 10),
+          missingKeywords: uniqueStrings(atsScore.missing_keywords || []).slice(0, 10),
+        }
+      : report.jdComparison;
+
+  return {
+    ...report,
+    atsScore: normalizeScore(atsScore?.ats_score ?? report.atsScore),
+    scoreLabel: buildMlScoreLabel(atsScore?.ats_score ?? report.atsScore),
+    extractedUser,
+    extractedSkills,
+    missingSkills,
+    suggestions: uniqueStrings([
+      ...(atsScore?.suggestions || []),
+      ...report.suggestions,
+    ]).slice(0, 8),
+    whyScoreIsLow: uniqueStrings([
+      ...(atsScore?.weaknesses || []),
+      ...report.whyScoreIsLow,
+    ]).slice(0, 6),
+    howToReachNinety: uniqueStrings([
+      ...(atsScore?.suggestions || []),
+      ...(primaryGap?.priority_skills || []).map((item) => `Close the ${item} skill gap.`),
+      ...report.howToReachNinety,
+    ]).slice(0, 6),
+    topKeywords: uniqueStrings([
+      ...(resumeParse?.keywords || []),
+      ...(atsScore?.matched_keywords || []),
+      ...report.topKeywords,
+    ]).slice(0, 12),
+    strengths: uniqueStrings([
+      ...(atsScore?.strengths || []),
+      ...report.strengths,
+    ]).slice(0, 6),
+    careerRecommendations: uniqueStrings([
+      ...(rolePrediction?.explanation || []),
+      ...report.careerRecommendations,
+    ]).slice(0, 6),
+    roleSpecificPlan: uniqueStrings([
+      ...(primaryGap?.priority_skills || []).map((item) => `Prioritize ${item} this week.`),
+      ...report.roleSpecificPlan,
+    ]).slice(0, 6),
+    jobMatches,
+    jdComparison,
+    breakdown: {
+      ...report.breakdown,
+      keywordMatch:
+        atsScore?.keyword_match_score != null
+          ? Math.round((Number(atsScore.keyword_match_score) / 100) * 30)
+          : report.breakdown.keywordMatch,
+      skillsMatch:
+        atsScore?.skill_match_score != null
+          ? Math.round((Number(atsScore.skill_match_score) / 100) * 20)
+          : report.breakdown.skillsMatch,
+    },
+  };
+}
+
 export function normalizeAnalysisReport(analysis) {
   const source = analysis && typeof analysis === "object" ? analysis : {};
   const extractedUserSource =
@@ -439,6 +590,20 @@ function buildLocalAiInsights(analysis, context) {
       "Rewrite one resume bullet for me",
     ],
   };
+}
+
+function buildMlScoreLabel(score) {
+  const normalized = normalizeScore(score);
+  if (normalized >= 85) {
+    return "Strong ATS fit";
+  }
+  if (normalized >= 70) {
+    return "Good ATS fit";
+  }
+  if (normalized >= 55) {
+    return "Needs optimization";
+  }
+  return "High ATS risk";
 }
 
 function normalizeLocalAiInsights(candidate, fallback) {

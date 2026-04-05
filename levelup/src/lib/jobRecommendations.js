@@ -625,6 +625,89 @@ export function buildTrackerApplicationFromJob({
   };
 }
 
+export function mergeMlJobMatches(recommendations, mlMatches = []) {
+  const baseRecommendations =
+    recommendations && typeof recommendations === "object"
+      ? recommendations
+      : {
+          targetRole: "",
+          roleSignals: [],
+          targetRoleMatches: [],
+          profileMatches: [],
+          allJobs: [],
+        };
+
+  const matchLookup = new Map(
+    (Array.isArray(mlMatches) ? mlMatches : []).map((match) => [
+      createMlMatchKey(match),
+      match,
+    ]),
+  );
+
+  const mergeJob = (job) => {
+    const mlMatch =
+      matchLookup.get(createMlMatchKey(job)) ||
+      matchLookup.get(createMlMatchKey({ company: job.company, role: job.role }));
+
+    if (!mlMatch) {
+      return {
+        ...job,
+        mlBacked: false,
+      };
+    }
+
+    const matchedSkills = normalizeStringArray(
+      mlMatch.matchedSkills || mlMatch.matched_skills,
+      6,
+    );
+    const missingSkills = normalizeStringArray(
+      mlMatch.missingSkills || mlMatch.missing_skills,
+      6,
+    );
+    const whyItMatches = uniqueStrings([
+      ...normalizeStringArray(mlMatch.whyFit || mlMatch.why_fit, 4),
+      ...(Array.isArray(job.whyItMatches) ? job.whyItMatches : []),
+    ]).slice(0, 4);
+    const matchScore = normalizeMlScore(mlMatch.matchScore ?? mlMatch.match_score) ?? job.matchScore;
+
+    return {
+      ...job,
+      matchScore,
+      location: String(mlMatch.location || job.location || "").trim() || job.location,
+      workMode: normalizeWorkMode(mlMatch.workMode || mlMatch.work_mode || job.workMode) || job.workMode,
+      matchedSkills: matchedSkills.length ? matchedSkills : job.matchedSkills,
+      missingSkills: missingSkills.length ? missingSkills : job.missingSkills,
+      whyItMatches: whyItMatches.length ? whyItMatches : job.whyItMatches,
+      riskSummary: missingSkills.length
+        ? `ML ranking still sees gaps in ${missingSkills.slice(0, 3).join(", ")}.`
+        : job.riskSummary,
+      mlBacked: true,
+    };
+  };
+
+  const allJobs = (baseRecommendations.allJobs || [])
+    .map(mergeJob)
+    .sort((left, right) => right.matchScore - left.matchScore);
+
+  const targetIds = new Set(
+    (baseRecommendations.targetRoleMatches || []).map((job) => createJobIdentityKey(job)),
+  );
+
+  const targetRoleMatches = allJobs
+    .filter((job) => targetIds.has(createJobIdentityKey(job)))
+    .slice(0, 8);
+  const profileMatches = allJobs
+    .filter((job) => !targetIds.has(createJobIdentityKey(job)))
+    .slice(0, 8);
+
+  return {
+    ...baseRecommendations,
+    targetRoleMatches,
+    profileMatches,
+    allJobs,
+  };
+}
+
 function scoreRecommendedJob(job, context) {
   const expandedJob = buildJobRecord(job);
   const roleSignals = context.recommendedRoleList || [];
@@ -835,6 +918,9 @@ function normalizeScore(value) {
 
 function normalizeWorkMode(value) {
   const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "onsite" || normalized === "on site") {
+    return "on-site";
+  }
   return ["remote", "hybrid", "on-site"].includes(normalized) ? normalized : "";
 }
 
@@ -878,4 +964,28 @@ function createApplicationId() {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeMlScore(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+  return clamp(Math.round(numericValue <= 1 ? numericValue * 100 : numericValue), 0, 100);
+}
+
+function createMlMatchKey(item) {
+  return [
+    String(item?.company || "").trim().toLowerCase(),
+    String(item?.role || "").trim().toLowerCase(),
+    String(item?.location || "").trim().toLowerCase(),
+  ].join("::");
+}
+
+function createJobIdentityKey(item) {
+  return [
+    String(item?.company || "").trim().toLowerCase(),
+    String(item?.role || "").trim().toLowerCase(),
+    String(item?.applicationUrl || item?.jobLink || "").trim().toLowerCase(),
+  ].join("::");
 }
