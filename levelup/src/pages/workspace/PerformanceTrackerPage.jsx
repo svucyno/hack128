@@ -7,6 +7,7 @@ import {
   Code2,
   Flame,
   GraduationCap,
+  Mic,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -35,6 +36,7 @@ import {
   isLevelUnlocked,
   normalizeAdaptiveLearningState,
 } from "../../lib/adaptiveLearning";
+import { normalizeMockInterviewState } from "../../lib/mockInterview";
 
 const STATUS_COLORS = ["#34d399", "#f59e0b", "#64748b"];
 
@@ -45,9 +47,13 @@ export default function PerformanceTrackerPage() {
     () => normalizeAdaptiveLearningState(profile?.adaptiveLearning),
     [profile?.adaptiveLearning],
   );
+  const mockInterview = useMemo(
+    () => normalizeMockInterviewState(profile?.mockInterview),
+    [profile?.mockInterview],
+  );
   const performance = useMemo(
-    () => buildAdaptivePerformance(adaptiveLearning),
-    [adaptiveLearning],
+    () => buildAdaptivePerformance(adaptiveLearning, mockInterview),
+    [adaptiveLearning, mockInterview],
   );
 
   if (!profileReady) {
@@ -65,7 +71,7 @@ export default function PerformanceTrackerPage() {
     );
   }
 
-  if (!adaptiveLearning.levels.length) {
+  if (!adaptiveLearning.levels.length && !mockInterview.sessions.length) {
     return (
       <div className="space-y-8">
         <PageHeader
@@ -106,6 +112,13 @@ export default function PerformanceTrackerPage() {
                   <Target className="h-4 w-4" />
                   Generate Roadmap
                 </Link>
+                <Link
+                  to="/workspace/mock-interview"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                >
+                  <Mic className="h-4 w-4" />
+                  Start Mock Interview
+                </Link>
               </div>
             </div>
 
@@ -142,7 +155,7 @@ export default function PerformanceTrackerPage() {
       <PageHeader
         eyebrow="Adaptive Performance"
         title="Performance"
-        description={`Live performance signals from your Adaptive Learning journey for ${adaptiveLearning.targetRole || "your active target role"}. This page updates from completed levels, quiz answers, compiler runs, streaks, and XP.`}
+        description={`Live performance signals from Adaptive Learning and Mock Interview Lab for ${adaptiveLearning.targetRole || mockInterview.targetRole || "your active target role"}. This page updates from completed levels, quiz answers, compiler runs, streaks, XP, interview scores, and saved interview feedback.`}
         aside={
           <RiskBadge
             level={performance.riskLevel}
@@ -152,7 +165,7 @@ export default function PerformanceTrackerPage() {
         }
       />
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-5">
         <PerformanceStatCard
           icon={TrendingUp}
           label="Readiness"
@@ -177,20 +190,34 @@ export default function PerformanceTrackerPage() {
           value={`${performance.compilerPassRate}%`}
           helper={`${performance.codePassedLevels}/${performance.codingLevels} levels passed`}
         />
+        <PerformanceStatCard
+          icon={Mic}
+          label="Interview Score"
+          value={
+            performance.completedInterviewSessions
+              ? `${performance.interviewAverage}%`
+              : "N/A"
+          }
+          helper={
+            performance.completedInterviewSessions
+              ? `${performance.completedInterviewSessions} session${performance.completedInterviewSessions === 1 ? "" : "s"} completed`
+              : "No completed mock interview yet"
+          }
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <GlassCard className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div className="text-lg font-semibold text-white">Weekly Adaptive Trend</div>
+              <div className="text-lg font-semibold text-white">Weekly Performance Trend</div>
               <div className="mt-2 text-sm leading-7 text-white/58">
-                Readiness and consistency are grouped from your roadmap weeks and
-                scored from completed levels, quizzes, and coding drills.
+                Readiness and consistency are grouped from your roadmap work and,
+                when available, recent mock interview results.
               </div>
             </div>
             <div className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/62">
-              {adaptiveLearning.sourceRoadmapTitle || "Active roadmap"}
+              {adaptiveLearning.sourceRoadmapTitle || mockInterview.targetRole || "Active performance feed"}
             </div>
           </div>
 
@@ -287,10 +314,10 @@ export default function PerformanceTrackerPage() {
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <GlassCard className="p-6">
-          <div className="text-lg font-semibold text-white">Adaptive Signals</div>
+          <div className="text-lg font-semibold text-white">Performance Signals</div>
           <div className="mt-2 text-sm leading-7 text-white/58">
-            These signals are computed from your level completion, assessments, and
-            coding runs.
+            These signals are computed from your level completion, assessments,
+            coding runs, and mock interview history.
           </div>
 
           <div className="mt-5 grid gap-4">
@@ -310,7 +337,7 @@ export default function PerformanceTrackerPage() {
             <div>
               <div className="text-lg font-semibold text-white">Current Performance Focus</div>
               <div className="mt-2 text-sm leading-7 text-white/58">
-                This is the next work the student needs to finish in Adaptive Learning.
+                This is the next work the student needs to finish in Adaptive Learning or Mock Interview Lab.
               </div>
             </div>
             <div className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/62">
@@ -328,7 +355,9 @@ export default function PerformanceTrackerPage() {
               </div>
               <div className="mt-2 text-sm leading-7 text-white/62">
                 {performance.nextLevel?.objective ||
-                  "Activate and continue your adaptive-learning roadmap to see the next mission."}
+                  (performance.latestInterviewSession
+                    ? "Continue practicing interviews or activate an adaptive-learning roadmap to unlock the next mission."
+                    : "Activate and continue your adaptive-learning roadmap to see the next mission.")}
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -344,6 +373,10 @@ export default function PerformanceTrackerPage() {
                 <MetricPill
                   label="Compiler Tests"
                   value={`${performance.passedTests}/${performance.totalTests}`}
+                />
+                <MetricPill
+                  label="Interviews"
+                  value={`${performance.completedInterviewSessions}`}
                 />
               </div>
             </div>
@@ -371,11 +404,93 @@ export default function PerformanceTrackerPage() {
                   Open Adaptive Learning
                   <ArrowRight className="h-4 w-4" />
                 </Link>
+                <Link
+                  to="/workspace/mock-interview"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                >
+                  Open Mock Interview Lab
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </div>
           </div>
         </GlassCard>
       </div>
+
+      {performance.latestInterviewSession ? (
+        <GlassCard className="p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-lg font-semibold text-white">Latest Mock Interview Feedback</div>
+              <div className="mt-2 text-sm leading-7 text-white/58">
+                Saved from Mock Interview Lab and included in the performance record.
+              </div>
+            </div>
+            <Link
+              to="/workspace/mock-interview"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              Open Mock Interview Lab
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-[0.72fr_1.28fr]">
+            <div className="rounded-[24px] border border-emerald-300/20 bg-emerald-500/10 p-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                Session Snapshot
+              </div>
+              <div className="mt-4 text-3xl font-black text-white">
+                {performance.latestInterviewSession.summary.overallScore}/100
+              </div>
+              <div className="mt-2 text-sm font-semibold text-emerald-100">
+                {performance.latestInterviewSession.summary.hireSignal || "Interview completed"}
+              </div>
+              <div className="mt-4 text-sm leading-7 text-white/72">
+                {performance.latestInterviewSession.role} ·{" "}
+                {formatInterviewType(performance.latestInterviewSession.interviewType)}
+              </div>
+              <div className="mt-2 text-sm leading-7 text-white/58">
+                {performance.latestInterviewSession.summary.summary || "Summary not available."}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <FeedbackPanel
+                title="Strengths"
+                items={performance.latestInterviewSession.summary.strengths}
+                tone="emerald"
+              />
+              <FeedbackPanel
+                title="Improvements"
+                items={performance.latestInterviewSession.summary.improvements}
+                tone="amber"
+              />
+              <div className="rounded-[22px] border border-white/10 bg-white/5 p-4 md:col-span-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/38">
+                  Next Steps
+                </div>
+                <div className="mt-4 grid gap-3">
+                  {performance.latestInterviewSession.summary.nextSteps.length ? (
+                    performance.latestInterviewSession.summary.nextSteps.map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-7 text-white/72"
+                      >
+                        {item}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-7 text-white/55">
+                      No next steps were returned for the latest interview.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+      ) : null}
     </div>
   );
 }
@@ -447,7 +562,38 @@ function MetricPill({ label, value }) {
   );
 }
 
-function buildAdaptivePerformance(adaptiveLearning) {
+function FeedbackPanel({ title, items, tone }) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-100"
+      : "border-amber-300/20 bg-amber-500/10 text-amber-100";
+
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-white/5 p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/38">
+        {title}
+      </div>
+      <div className="mt-4 grid gap-3">
+        {items?.length ? (
+          items.map((item) => (
+            <div
+              key={`${title}-${item}`}
+              className={`rounded-[16px] border px-4 py-3 text-sm leading-7 ${toneClass}`}
+            >
+              {item}
+            </div>
+          ))
+        ) : (
+          <div className="rounded-[16px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-7 text-white/55">
+            No {title.toLowerCase()} were recorded.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function buildAdaptivePerformance(adaptiveLearning, mockInterview) {
   const levels = Array.isArray(adaptiveLearning?.levels) ? adaptiveLearning.levels : [];
   const totalLevels = levels.length;
   const unlockedLevels = levels.filter((level, index) =>
@@ -503,25 +649,30 @@ function buildAdaptivePerformance(adaptiveLearning) {
   const compilerAccuracy = toPercent(passedTests, totalTests);
   const compilerPassRate = toPercent(codePassedLevels, codingLevels);
   const streakScore = clamp(Math.round((adaptiveLearning.streak || 0) * 14), 0, 100);
-  const readiness = clamp(
-    Math.round(
-      adaptiveLearning.completionRate * 0.42 +
-        quizAccuracy * 0.2 +
-        compilerAccuracy * 0.18 +
-        streakScore * 0.2,
-    ),
-    0,
-    100,
+  const completedInterviewSessions = Number(mockInterview?.completedSessions || 0);
+  const interviewAverage = clamp(Number(mockInterview?.averageScore || 0), 0, 100);
+  const interviewPracticeCadence = clamp(completedInterviewSessions * 22, 0, 100);
+  const latestInterviewSession =
+    Array.isArray(mockInterview?.sessions)
+      ? mockInterview.sessions.find((session) => session.status === "completed") || null
+      : null;
+  const readiness = weightedAverage(
+    [
+      levels.length ? [adaptiveLearning.completionRate, 0.34] : null,
+      totalQuestions ? [quizAccuracy, 0.18] : null,
+      totalTests ? [compilerAccuracy, 0.16] : null,
+      levels.length || adaptiveLearning.streak ? [streakScore, 0.14] : null,
+      completedInterviewSessions ? [interviewAverage, 0.18] : null,
+    ].filter(Boolean),
   );
-  const consistency = clamp(
-    Math.round(
-      streakScore * 0.4 +
-        adaptiveLearning.completionRate * 0.35 +
-        quizCoverage * 0.15 +
-        compilerPassRate * 0.1,
-    ),
-    0,
-    100,
+  const consistency = weightedAverage(
+    [
+      levels.length ? [adaptiveLearning.completionRate, 0.34] : null,
+      totalQuestions ? [quizCoverage, 0.18] : null,
+      codingLevels ? [compilerPassRate, 0.14] : null,
+      levels.length || adaptiveLearning.streak ? [streakScore, 0.18] : null,
+      completedInterviewSessions ? [interviewPracticeCadence, 0.16] : null,
+    ].filter(Boolean),
   );
 
   const risk = deriveRisk({
@@ -529,6 +680,8 @@ function buildAdaptivePerformance(adaptiveLearning) {
     consistency,
     streak: adaptiveLearning.streak || 0,
     completionRate: adaptiveLearning.completionRate || 0,
+    interviewAverage,
+    interviewSessions: completedInterviewSessions,
   });
 
   const blockers = buildBlockers({
@@ -537,13 +690,18 @@ function buildAdaptivePerformance(adaptiveLearning) {
     quizCoverage,
     compilerPassRate,
     lockedLevels,
+    completedInterviewSessions,
   });
 
   return {
     unlockedLevels,
     readiness,
     consistency,
-    readinessHelper: `${completedLevels}/${totalLevels} days completed`,
+    readinessHelper: totalLevels
+      ? `${completedLevels}/${totalLevels} days completed`
+      : completedInterviewSessions
+        ? `${completedInterviewSessions} completed mock interviews`
+        : "No tracked performance activity yet",
     quizAccuracy,
     totalQuestions,
     answeredQuestions,
@@ -552,16 +710,27 @@ function buildAdaptivePerformance(adaptiveLearning) {
     compilerAccuracy,
     codingLevels,
     codePassedLevels,
+    interviewAverage,
+    completedInterviewSessions,
+    latestInterviewSession,
     totalTests,
     passedTests,
     nextLevel,
     blockers,
-    statusDistribution: [
-      { name: "Completed", value: completedLevels },
-      { name: "Unlocked", value: inProgressLevels },
-      { name: "Locked", value: lockedLevels },
-    ].filter((entry) => entry.value > 0),
-    weeklySeries: buildWeeklySeries(levels),
+    statusDistribution: levels.length
+      ? [
+          { name: "Completed", value: completedLevels },
+          { name: "Unlocked", value: inProgressLevels },
+          { name: "Locked", value: lockedLevels },
+        ].filter((entry) => entry.value > 0)
+      : [
+          { name: "Interviews", value: completedInterviewSessions },
+          {
+            name: "Pending",
+            value: Math.max(Number(mockInterview?.totalSessions || 0) - completedInterviewSessions, 0),
+          },
+        ].filter((entry) => entry.value > 0),
+    weeklySeries: buildWeeklySeries(levels, mockInterview),
     signals: buildSignals({
       adaptiveLearning,
       readiness,
@@ -569,6 +738,9 @@ function buildAdaptivePerformance(adaptiveLearning) {
       quizAccuracy,
       compilerPassRate,
       nextLevel,
+      interviewAverage,
+      completedInterviewSessions,
+      latestInterviewSession,
     }),
     riskLevel: risk.level,
     riskLabel: risk.label,
@@ -576,7 +748,11 @@ function buildAdaptivePerformance(adaptiveLearning) {
   };
 }
 
-function buildWeeklySeries(levels) {
+function buildWeeklySeries(levels, mockInterview) {
+  if (!levels.length) {
+    return buildInterviewOnlySeries(mockInterview);
+  }
+
   const grouped = [];
 
   levels.forEach((level, index) => {
@@ -646,6 +822,26 @@ function buildWeeklySeries(levels) {
   });
 }
 
+function buildInterviewOnlySeries(mockInterview) {
+  const sessions = Array.isArray(mockInterview?.sessions)
+    ? mockInterview.sessions.filter((session) => session.status === "completed")
+    : [];
+
+  if (!sessions.length) {
+    return [{ week: "Current", readiness: 0, consistency: 0 }];
+  }
+
+  return sessions
+    .slice()
+    .reverse()
+    .slice(-6)
+    .map((session, index) => ({
+      week: `Interview ${index + 1}`,
+      readiness: clamp(Number(session.summary?.overallScore || 0), 0, 100),
+      consistency: clamp(55 + index * 6, 0, 100),
+    }));
+}
+
 function buildSignals({
   adaptiveLearning,
   readiness,
@@ -653,6 +849,9 @@ function buildSignals({
   quizAccuracy,
   compilerPassRate,
   nextLevel,
+  interviewAverage,
+  completedInterviewSessions,
+  latestInterviewSession,
 }) {
   return [
     {
@@ -685,6 +884,14 @@ function buildSignals({
           : "No coding drill has been fully passed yet. Run the compiler on the active level to improve this score.",
     },
     {
+      icon: Mic,
+      title: "Mock interview performance",
+      description:
+        completedInterviewSessions > 0
+          ? `${interviewAverage}% average interview score across ${completedInterviewSessions} completed session${completedInterviewSessions === 1 ? "" : "s"}. Latest result: ${latestInterviewSession?.summary?.hireSignal || "feedback saved"}.`
+          : "No completed mock interview yet. Run one session to save scored feedback into the performance record.",
+    },
+    {
       icon: Target,
       title: "Next target",
       description:
@@ -701,6 +908,7 @@ function buildBlockers({
   quizCoverage,
   compilerPassRate,
   lockedLevels,
+  completedInterviewSessions,
 }) {
   const blockers = [];
 
@@ -730,25 +938,29 @@ function buildBlockers({
     blockers.push(`${lockedLevels} levels are still locked behind pending work in the earlier days.`);
   }
 
+  if (completedInterviewSessions === 0) {
+    blockers.push("No mock interview has been completed yet. Run at least one session to add interview feedback to performance.");
+  }
+
   return blockers.slice(0, 4);
 }
 
-function deriveRisk({ readiness, consistency, streak, completionRate }) {
-  if (readiness < 45 || (completionRate < 25 && streak === 0)) {
+function deriveRisk({ readiness, consistency, streak, completionRate, interviewAverage, interviewSessions }) {
+  if (readiness < 45 || (completionRate < 25 && streak === 0 && interviewSessions === 0)) {
     return {
       level: "high",
       label: "High Risk",
       summary:
-        "The learner is behind on adaptive-learning completion or has lost momentum. Finish the current unlocked level before opening anything new.",
+        "The learner is behind on adaptive-learning completion, interview practice, or both. Finish the current unlocked level and complete one mock interview before opening anything new.",
     };
   }
 
-  if (readiness < 70 || consistency < 65) {
+  if (readiness < 70 || consistency < 65 || (interviewSessions > 0 && interviewAverage < 65)) {
     return {
       level: "medium",
       label: "Medium Risk",
       summary:
-        "Progress is moving, but quiz coverage, compiler passes, or streak consistency still need tightening.",
+        "Progress is moving, but quiz coverage, compiler passes, interview scores, or streak consistency still need tightening.",
     };
   }
 
@@ -756,8 +968,8 @@ function deriveRisk({ readiness, consistency, streak, completionRate }) {
     level: "low",
     label: "Low Risk",
     summary:
-      "Adaptive-learning progress is healthy. Keep the streak going and continue closing the next unlocked level.",
-    };
+      "Adaptive-learning and interview performance are healthy. Keep the streak going and continue closing the next unlocked level.",
+  };
 }
 
 function toPercent(part, whole) {
@@ -770,4 +982,37 @@ function toPercent(part, whole) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, Number(value) || 0));
+}
+
+function weightedAverage(entries) {
+  const validEntries = (Array.isArray(entries) ? entries : []).filter(
+    (entry) =>
+      Array.isArray(entry) &&
+      entry.length === 2 &&
+      Number.isFinite(Number(entry[0])) &&
+      Number.isFinite(Number(entry[1])) &&
+      Number(entry[1]) > 0,
+  );
+
+  if (!validEntries.length) {
+    return 0;
+  }
+
+  const totalWeight = validEntries.reduce((sum, entry) => sum + Number(entry[1]), 0);
+  const weightedTotal = validEntries.reduce(
+    (sum, entry) => sum + Number(entry[0]) * Number(entry[1]),
+    0,
+  );
+
+  return clamp(Math.round(weightedTotal / totalWeight), 0, 100);
+}
+
+function formatInterviewType(value) {
+  if (value === "hr") {
+    return "HR";
+  }
+  if (value === "domain") {
+    return "Domain";
+  }
+  return "Technical";
 }

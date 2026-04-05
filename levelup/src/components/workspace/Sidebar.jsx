@@ -1,9 +1,14 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { sidebarSections } from "../../data/workspaceData";
 
-export default function Sidebar({ open, setOpen }) {
+export default function Sidebar({ open, setOpen, collapsed = false, setCollapsed = () => undefined }) {
+  const handleNavClick = () => {
+    setOpen(false);
+    setCollapsed(true);
+  };
+
   const panel = (
     <div className="flex h-full flex-col rounded-[30px] border border-white/10 bg-black/35 p-5 shadow-[0_30px_100px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
       <div className="mb-8 flex items-center justify-between">
@@ -11,9 +16,18 @@ export default function Sidebar({ open, setOpen }) {
           <div className="text-xs uppercase tracking-[0.3em] text-red-200/70">LevelUp</div>
           <div className="mt-2 text-xl font-black text-white">AI Career OS</div>
         </div>
-        <button className="lg:hidden rounded-full border border-white/10 p-2 text-white/70" onClick={() => setOpen(false)} type="button">
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="hidden rounded-full border border-white/10 p-2 text-white/70 transition hover:border-white/20 hover:text-white lg:inline-flex"
+            onClick={() => setCollapsed(true)}
+            type="button"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button className="rounded-full border border-white/10 p-2 text-white/70 transition hover:border-white/20 hover:text-white lg:hidden" onClick={() => setOpen(false)} type="button">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto pr-1">
@@ -30,6 +44,7 @@ export default function Sidebar({ open, setOpen }) {
                     key={item.to + item.label}
                     to={item.to}
                     end={item.to === "/workspace"}
+                    onClick={handleNavClick}
                     className={({ isActive }) =>
                       `group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
                         isActive
@@ -65,7 +80,18 @@ export default function Sidebar({ open, setOpen }) {
         <Menu className="h-5 w-5" />
       </button>
 
-      <aside className="hidden lg:block lg:h-full lg:w-[290px] lg:shrink-0">{panel}</aside>
+      {collapsed ? (
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="fixed left-6 top-6 z-30 hidden items-center gap-2 rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-sm font-medium text-white shadow-lg backdrop-blur transition hover:border-white/20 hover:bg-black/55 lg:inline-flex"
+        >
+          <ChevronRight className="h-4 w-4" />
+          <span>Open Sidebar</span>
+        </button>
+      ) : (
+        <aside className="hidden lg:block lg:h-full lg:w-[290px] lg:shrink-0">{panel}</aside>
+      )}
 
       <AnimatePresence>
         {open && (

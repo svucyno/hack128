@@ -15,7 +15,6 @@ import { useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
 import {
-  ATS_WORKFLOW_STEPS,
   RESUME_PROCESSING_STEPS,
   buildHistorySnapshot,
   buildOverviewPayload,
@@ -413,18 +412,18 @@ export default function ResumeAnalyzerPage() {
   };
 
   return (
-    <div className="resume-page resume-font-body rounded-[32px] px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl">
+    <div className="resume-page resume-font-body h-full rounded-[32px] px-4 py-6 sm:px-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col">
         <div className="resume-fade-up text-center">
           <div className="resume-badge mx-auto">
             <Sparkles className="h-3.5 w-3.5" />
             AI-Powered
           </div>
-          <h1 className="resume-font-display mt-5 text-4xl font-bold sm:text-5xl">
+          <h1 className="resume-font-display mt-4 text-4xl font-bold sm:text-5xl">
             Resume Analyzer
           </h1>
           <p
-            className="mx-auto mt-3 max-w-2xl text-base leading-7"
+            className="mx-auto mt-3 max-w-2xl text-sm leading-7 sm:text-base"
             style={{ color: "var(--resume-text-muted)" }}
           >
             Upload a file or paste your resume, add a target job description, and
@@ -432,7 +431,7 @@ export default function ResumeAnalyzerPage() {
           </p>
         </div>
 
-        <div className="resume-card resume-fade-up resume-stagger-1 mt-8 p-6 sm:p-8">
+        <div className="resume-card resume-fade-up resume-stagger-1 mt-6 p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div
@@ -629,7 +628,7 @@ export default function ResumeAnalyzerPage() {
         </div>
 
         {loading ? (
-          <div className="resume-card resume-fade-up resume-stagger-2 mt-6 p-6">
+          <div className="resume-card resume-fade-up resume-stagger-2 mt-5 p-6">
             <div className="flex items-center gap-3">
               <div
                 className="flex h-12 w-12 items-center justify-center rounded-2xl"
@@ -670,39 +669,6 @@ export default function ResumeAnalyzerPage() {
             </div>
           </div>
         ) : null}
-
-        <div className="resume-card resume-fade-up resume-stagger-3 mt-6 p-6 sm:p-8">
-          <div className="resume-badge">
-            <Sparkles className="h-3.5 w-3.5" />
-            Flow
-          </div>
-          <h2 className="resume-font-display mt-4 text-3xl font-bold">
-            Input to result page
-          </h2>
-          <p className="mt-3 text-sm leading-7" style={{ color: "var(--resume-text-muted)" }}>
-            The first page collects the resume and job description. After analysis,
-            the detailed ATS report opens on a separate screen.
-          </p>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {ATS_WORKFLOW_STEPS.map((step, index) => (
-              <div key={step.title} className="resume-card-soft p-4">
-                <div
-                  className="text-[11px] font-semibold uppercase tracking-[0.2em]"
-                  style={{ color: "var(--resume-primary)" }}
-                >
-                  Step {index + 1}
-                </div>
-                <div className="mt-3 text-base font-semibold" style={{ color: "var(--resume-text-soft)" }}>
-                  {step.title}
-                </div>
-                <div className="mt-2 text-sm leading-7" style={{ color: "var(--resume-text-muted)" }}>
-                  {step.description}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

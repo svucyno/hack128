@@ -324,6 +324,8 @@ function buildCareerContext(profile = {}) {
   const rawResumeText = profile.resumeWorkspace?.latestAnalysis?.rawResumeText || "";
   const parsedSections = extractResumeSections(rawResumeText);
   const jobMatches = Array.isArray(latestAnalysis?.jobMatches) ? latestAnalysis.jobMatches : [];
+  const latestAnalyzedResumeRole = getLatestAnalyzedResumeRole(latestAnalysis);
+  const latestAnalyzedResumeRoleMatch = getLatestAnalyzedResumeRoleMatch(latestAnalysis);
   const missingSkills = uniqueStrings([
     ...(resumeOverview.missingSkills || []),
     ...(latestAnalysis?.missingSkills || []),
@@ -386,10 +388,9 @@ function buildCareerContext(profile = {}) {
       phone: resumeOverview.phone || latestAnalysis?.extractedUser?.phone || "",
       atsScore: toNumberOrNull(resumeOverview.atsScore ?? latestAnalysis?.atsScore),
       scoreLabel: resumeOverview.scoreLabel || latestAnalysis?.scoreLabel || "",
-      topRole:
-        resumeOverview.topRole || jobMatches[0]?.role || "",
+      topRole: latestAnalyzedResumeRole || resumeOverview.topRole || "",
       topRoleMatch: toNumberOrNull(
-        resumeOverview.topRoleMatch ?? jobMatches[0]?.match,
+        latestAnalyzedResumeRoleMatch ?? resumeOverview.topRoleMatch,
       ),
       educationLevel:
         resumeOverview.educationLevel ||
@@ -499,6 +500,23 @@ function buildAcademicPerformanceContext(profile = {}) {
           : toArray(source.recommendations),
     ).slice(0, 5),
   };
+}
+
+function getLatestAnalyzedResumeRole(latestAnalysis) {
+  return truncateText(
+    latestAnalysis?.jobMatches?.[0]?.role || latestAnalysis?.topRole || "",
+    80,
+  );
+}
+
+function getLatestAnalyzedResumeRoleMatch(latestAnalysis) {
+  if (!latestAnalysis || typeof latestAnalysis !== "object") {
+    return null;
+  }
+
+  return toNumberOrNull(
+    latestAnalysis?.jobMatches?.[0]?.match ?? latestAnalysis?.topRoleMatch,
+  );
 }
 
 function buildAdaptiveLearningContext(profile = {}) {
@@ -826,7 +844,7 @@ function buildFallbackGuidance({ context, message }) {
     `Can you create a roadmap for ${topRole}?`,
     "What project should I build next?",
   ];
-  const targetRole = recommendedRoles[0]?.role || context.guidanceMemory?.latestTargetRole || topRole;
+  let targetRole = context.guidanceMemory?.latestTargetRole || "";
 
   let answer = `Based on your current profile, ${topRole} looks like the strongest direction.`;
   let summary = `Best current direction: ${recommendedRoles[0]?.role || topRole}. Main focus: ${suggestedFocusAreas.slice(0, 2).join(", ") || "profile completion"}.`;
@@ -894,16 +912,22 @@ function buildFallbackGuidance({ context, message }) {
   }
 
   if (promptType === "resume") {
+    targetRole = targetRole || recommendedRoles[0]?.role || topRole;
     answer = `Your current ATS snapshot is ${atsScore}. Improve the resume first by strengthening proof around ${suggestedFocusAreas.join(", ") || "impact, projects, and role-specific keywords"}.`;
   } else if (promptType === "roadmap") {
+    targetRole = targetRole || recommendedRoles[0]?.role || topRole;
     answer = `I built a ${roadmap.durationWeeks}-week roadmap focused on ${topRole}. The first priority is ${suggestedFocusAreas[0] || "role alignment"}, then you should turn each missing area into a visible project or interview-ready example.`;
   } else if (promptType === "roles") {
+    targetRole = targetRole || recommendedRoles[0]?.role || topRole;
     answer = `Your profile fits ${recommendedRoles[0]?.role || topRole} best right now. That fit comes from your current strengths, while ${suggestedFocusAreas.slice(0, 2).join(" and ") || "role depth"} are the main gaps keeping you from stronger placement readiness.`;
   } else if (promptType === "interview") {
+    targetRole = targetRole || recommendedRoles[0]?.role || topRole;
     answer = `For interview readiness, keep your answers anchored to one target role: ${topRole}. Build concise stories around your projects, practice problem solving, and prepare explanations for the gaps around ${suggestedFocusAreas.join(", ") || "system design and implementation depth"}.`;
   } else if (promptType === "projects") {
+    targetRole = targetRole || recommendedRoles[0]?.role || topRole;
     answer = `Your next project should directly support ${topRole}. Use it to demonstrate ${suggestedFocusAreas.join(", ") || "backend depth, deployment, and measurable impact"} with one deployed end-to-end build.`;
   } else if (promptType === "skills") {
+    targetRole = targetRole || recommendedRoles[0]?.role || topRole;
     answer = `The next skills to learn are ${suggestedFocusAreas.join(", ") || "role-specific fundamentals"}. Learn them in project context, not as isolated theory, so your resume and interviews both improve at the same time.`;
   } else if (promptType === "general") {
     answer = context.resume.available
@@ -1447,7 +1471,6 @@ function normalizeGuidancePayload(payload, context, message) {
       recommendedRoles[0]?.role ||
       fallback.targetRole ||
       context.guidanceMemory?.latestTargetRole ||
-      context.resume.topRole ||
       "",
     80,
   );
@@ -1812,10 +1835,10 @@ async function saveCareerGuidanceConversation({
   const persistedTargetRole =
     truncateText(
       guidance.targetRole ||
+        guidance.recommendedRoles?.[0]?.role ||
         currentChat?.latestTargetRole ||
         guidanceRoot?.latestTargetRole ||
         context.guidanceMemory?.latestTargetRole ||
-        context.resume.topRole ||
         "",
       80,
     ) || "";

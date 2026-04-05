@@ -40,9 +40,9 @@ const HOW_TO_STEPS = [
   },
   {
     number: "4",
-    title: "Plan Tasks",
-    description: "Use the Task Calendar page to schedule study blocks and interview prep.",
-    to: "/workspace/task-calendar",
+    title: "Track Applications",
+    description: "Use Job Application Tracker to manage deadlines, rounds, and resume versions.",
+    to: "/workspace/job-applications",
   },
 ];
 
@@ -260,7 +260,7 @@ export default function DashboardPage() {
         </div>
       </GlassCard>
 
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <ActionCard
           title="Resume Analyzer"
           description="Upload a fresh resume, run ATS scoring, and save the latest report."
@@ -278,6 +278,12 @@ export default function DashboardPage() {
           description="See what is missing for your target role and prioritize what to learn next."
           to="/workspace/skill-gap-analysis"
           icon={Target}
+        />
+        <ActionCard
+          title="Job Applications"
+          description="Track companies, deadlines, interview rounds, and the resume version sent."
+          to="/workspace/job-applications"
+          icon={Briefcase}
         />
       </div>
     </div>

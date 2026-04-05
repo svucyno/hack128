@@ -11,8 +11,10 @@ import { createWorkspaceStatePayload, saveWorkspaceState } from "../lib/userData
 
 export default function WorkspaceLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const isImmersiveCareerGuidance = location.pathname === "/workspace/career-guidance";
   const user = useWorkspaceStore((state) => state.user);
   const profileReady = useWorkspaceStore((state) => state.profileReady);
   const notifications = useWorkspaceStore((state) => state.notifications);
@@ -20,6 +22,7 @@ export default function WorkspaceLayout() {
   const uploadedFiles = useWorkspaceStore((state) => state.uploadedFiles);
   const processing = useWorkspaceStore((state) => state.processing);
   const calendarTasks = useWorkspaceStore((state) => state.calendarTasks);
+  const jobApplications = useWorkspaceStore((state) => state.jobApplications);
   const setUser = useWorkspaceStore((state) => state.setUser);
   const setProfile = useWorkspaceStore((state) => state.setProfile);
   const setProfileReady = useWorkspaceStore((state) => state.setProfileReady);
@@ -90,6 +93,10 @@ export default function WorkspaceLayout() {
   ]);
 
   useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     if (!user.uid || !profileReady) {
       return;
     }
@@ -100,6 +107,7 @@ export default function WorkspaceLayout() {
         uploadedFiles,
         processing,
         calendarTasks,
+        jobApplications,
         lastVisitedRoute: location.pathname,
       });
     const serializedSnapshot = JSON.stringify(workspaceSnapshot);
@@ -118,6 +126,7 @@ export default function WorkspaceLayout() {
     searchQuery,
     uploadedFiles,
     calendarTasks,
+    jobApplications,
     user.uid,
   ]);
 
@@ -130,8 +139,19 @@ export default function WorkspaceLayout() {
         <div className="theme-glow-orange absolute bottom-0 left-1/3 h-80 w-80 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto flex h-screen max-w-[1600px] gap-6 p-4 lg:p-6">
-        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <div
+        className={`relative z-10 mx-auto flex h-screen max-w-[1600px] ${
+          isImmersiveCareerGuidance ? "p-3 sm:p-4 lg:p-5" : "gap-6 p-4 lg:p-6"
+        }`}
+      >
+        {isImmersiveCareerGuidance ? null : (
+          <Sidebar
+            open={sidebarOpen}
+            setOpen={setSidebarOpen}
+            collapsed={sidebarCollapsed}
+            setCollapsed={setSidebarCollapsed}
+          />
+        )}
 
         <motion.main
           initial={{ opacity: 0, y: 16 }}
@@ -139,9 +159,17 @@ export default function WorkspaceLayout() {
           transition={{ duration: 0.45 }}
           className="min-w-0 flex-1 overflow-hidden"
         >
-          <div className="theme-shell-panel flex h-full min-h-0 flex-col rounded-[34px] border p-5 backdrop-blur-2xl sm:p-6 lg:p-8">
-            <TopNavbar />
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div
+            className={`theme-shell-panel flex h-full min-h-0 flex-col rounded-[34px] border backdrop-blur-2xl ${
+              isImmersiveCareerGuidance ? "overflow-hidden" : "p-5 sm:p-6 lg:p-8"
+            }`}
+          >
+            {isImmersiveCareerGuidance ? null : <TopNavbar />}
+            <div
+              className={`min-h-0 flex-1 ${
+                isImmersiveCareerGuidance ? "overflow-hidden" : "overflow-y-auto pr-1"
+              }`}
+            >
               <AnimatePresence mode="wait">
                 <motion.div
                   key={location.pathname}
@@ -149,7 +177,7 @@ export default function WorkspaceLayout() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -12 }}
                   transition={{ duration: 0.28 }}
-                  className="pb-2"
+                  className={isImmersiveCareerGuidance ? "h-full" : "pb-2"}
                 >
                   <Outlet />
                 </motion.div>

@@ -13,6 +13,7 @@ import {
   Sparkles,
   Users,
   BookOpenCheck,
+  Mic,
   Video,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ export const sidebarSections = [
       { label: "Resume Parser", to: "/workspace/resume-parser", icon: FileSearch },
       { label: "Skill Gap", to: "/workspace/skill-gap-analysis", icon: BarChart3 },
       { label: "Role Predictor", to: "/workspace/job-role-predictor", icon: Sparkles },
+      { label: "Mock Interview", to: "/workspace/mock-interview", icon: Mic },
       { label: "Performance", to: "/workspace/performance", icon: GraduationCap },
     ],
   },
@@ -40,8 +42,11 @@ export const sidebarSections = [
     ],
   },
   {
-    title: "Task Calendar",
-    items: [{ label: "Task Calendar", to: "/workspace/task-calendar", icon: CalendarDays }],
+    title: "Placement OS",
+    items: [
+      { label: "Job Applications", to: "/workspace/job-applications", icon: Briefcase },
+      { label: "Task Calendar", to: "/workspace/task-calendar", icon: CalendarDays },
+    ],
   },
   {
     title: "Tools",
@@ -65,6 +70,8 @@ export const dashboardStats = [
 export const dashboardModules = [
   { title: "Resume Analyzer", subtitle: "ATS scoring for resume and job description compatibility", to: "/workspace/resume-analyzer", metric: "91%" },
   { title: "Career Guidance", subtitle: "AI-based career recommendation platform for students", to: "/workspace/career-guidance", metric: "12 roles" },
+  { title: "Job Applications", subtitle: "Track companies, interview rounds, deadlines, and resume versions", to: "/workspace/job-applications", metric: "Pipeline" },
+  { title: "Mock Interview", subtitle: "Gemini-powered HR, technical, and domain interview practice", to: "/workspace/mock-interview", metric: "Scored" },
   { title: "Skill Gap", subtitle: "Missing skills analysis for target roles", to: "/workspace/skill-gap-analysis", metric: "8 gaps" },
   { title: "Adaptive Learning", subtitle: "Personalized learning roadmap for different speeds", to: "/workspace/adaptive-learning", metric: "9 weeks" },
   { title: "Resume Parser", subtitle: "Extract skills, education, projects, and experience", to: "/workspace/resume-parser", metric: "94%" },
@@ -88,6 +95,8 @@ export const overviewTrend = [
 export const quickActions = [
   { title: "Upload Resume", subtitle: "Start ATS scoring and resume parsing", icon: FileSearch, to: "/workspace/resume-analyzer" },
   { title: "Analyze Career", subtitle: "Open AI career guidance and role recommendations", icon: Briefcase, to: "/workspace/career-guidance" },
+  { title: "Track Applications", subtitle: "Manage companies, deadlines, and interview rounds", icon: CalendarDays, to: "/workspace/job-applications" },
+  { title: "Mock Interview", subtitle: "Practice role-based interviews and save scored feedback", icon: Mic, to: "/workspace/mock-interview" },
   { title: "Task Calendar", subtitle: "Plan weekly study blocks, resume work, and applications", icon: CalendarDays, to: "/workspace/task-calendar" },
 ];
 

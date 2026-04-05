@@ -23,6 +23,11 @@ import {
   getVideoSummarizerEngineStatus,
   runVideoSummarizer,
 } from "./videoSummarizer.js";
+import {
+  getMockInterviewEngineStatus,
+  runMockInterviewAnswer,
+  runMockInterviewStart,
+} from "./mockInterview.js";
 
 dotenv.config({ path: fileURLToPath(new URL("./.env", import.meta.url)) });
 
@@ -446,6 +451,122 @@ app.post("/video-brief/summarize", async (req, res) => {
     res.status(statusCode).json({
       error: error?.message || "Video brief request failed.",
       engine: getVideoSummarizerEngineStatus(),
+    });
+  }
+});
+
+app.post("/mock-interview/start", async (req, res) => {
+  const token = getBearerToken(req.headers.authorization || "");
+  const {
+    role = "",
+    interviewType = "technical",
+    difficulty = "medium",
+    company = "",
+    focusAreas = [],
+    jobDescription = "",
+    maxQuestions = 4,
+  } = req.body || {};
+
+  if (!token) {
+    return res.status(401).json({ error: "Authorization token is required." });
+  }
+
+  ensureAdmin();
+  if (!admin.apps.length) {
+    return res.status(501).json({
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini mock interview lab.",
+    });
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const snapshot = await admin.database().ref(`users/${decodedToken.uid}`).once("value");
+    const profile = snapshot.exists() ? snapshot.val() : {};
+    const result = await runMockInterviewStart({
+      profile,
+      role,
+      interviewType,
+      difficulty,
+      company,
+      focusAreas,
+      jobDescription,
+      maxQuestions,
+    });
+
+    res.json({
+      ok: true,
+      engine: getMockInterviewEngineStatus(),
+      ...result,
+    });
+  } catch (error) {
+    const statusCode =
+      error?.code === "auth/id-token-expired" || error?.code === "auth/argument-error"
+        ? 401
+        : 500;
+
+    console.error("Mock interview start error:", error);
+    res.status(statusCode).json({
+      error: error?.message || "Mock interview start request failed.",
+      engine: getMockInterviewEngineStatus(),
+    });
+  }
+});
+
+app.post("/mock-interview/answer", async (req, res) => {
+  const token = getBearerToken(req.headers.authorization || "");
+  const {
+    session,
+    answer = "",
+    confidenceLevel = "medium",
+    timeTakenSeconds = 0,
+  } = req.body || {};
+
+  if (!token) {
+    return res.status(401).json({ error: "Authorization token is required." });
+  }
+
+  if (!session || typeof session !== "object") {
+    return res.status(400).json({ error: "Interview session context is required." });
+  }
+
+  if (!String(answer || "").trim()) {
+    return res.status(400).json({ error: "Interview answer is required." });
+  }
+
+  ensureAdmin();
+  if (!admin.apps.length) {
+    return res.status(501).json({
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini mock interview lab.",
+    });
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const snapshot = await admin.database().ref(`users/${decodedToken.uid}`).once("value");
+    const profile = snapshot.exists() ? snapshot.val() : {};
+    const result = await runMockInterviewAnswer({
+      profile,
+      session,
+      answer,
+      confidenceLevel,
+      timeTakenSeconds,
+    });
+
+    res.json({
+      ok: true,
+      engine: getMockInterviewEngineStatus(),
+      ...result,
+    });
+  } catch (error) {
+    const statusCode =
+      error?.code === "auth/id-token-expired" || error?.code === "auth/argument-error"
+        ? 401
+        : 500;
+
+    console.error("Mock interview answer error:", error);
+    res.status(statusCode).json({
+      error: error?.message || "Mock interview answer request failed.",
+      engine: getMockInterviewEngineStatus(),
     });
   }
 });

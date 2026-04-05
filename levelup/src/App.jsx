@@ -18,6 +18,8 @@ import ResumeParserPage from "./pages/workspace/ResumeParserPage";
 import JobRolePredictorPage from "./pages/workspace/JobRolePredictorPage";
 import LearningRoadmapPage from "./pages/workspace/LearningRoadmapPage";
 import AdaptiveLearningPage from "./pages/workspace/AdaptiveLearningPage";
+import JobApplicationTrackerPage from "./pages/workspace/JobApplicationTrackerPage";
+import MockInterviewLabPage from "./pages/workspace/MockInterviewLabPage";
 import SkillGapPage from "./pages/workspace/SkillGapPage";
 import SettingsPage from "./pages/workspace/SettingsPage";
 
@@ -59,6 +61,8 @@ export default function App() {
         <Route path="video-brief" element={<VideoBriefPage />} />
         <Route path="resume-parser" element={<ResumeParserPage />} />
         <Route path="job-role-predictor" element={<JobRolePredictorPage />} />
+        <Route path="job-applications" element={<JobApplicationTrackerPage />} />
+        <Route path="mock-interview" element={<MockInterviewLabPage />} />
         <Route path="adaptive-learning" element={<AdaptiveLearningPage />} />
         <Route path="task-calendar" element={<LearningRoadmapPage />} />
         <Route path="skill-gap-analysis" element={<SkillGapPage />} />
