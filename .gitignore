@@ -1,0 +1,10 @@
+node_modules/
+levelup/node_modules/
+levelup/dist/
+levelup/server/node_modules/
+.DS_Store
+*.log
+.env
+levelup/.env
+levelup/server/.env
+levelup/server/serviceAccount.json

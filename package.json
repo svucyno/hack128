@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix levelup install && npm --prefix levelup/server install",
+    "setup": "npm --prefix levelup install && npm --prefix levelup/server install",
+    "dev": "npm --prefix levelup run dev",
+    "dev:client": "npm --prefix levelup run dev",
+    "dev:server": "npm --prefix levelup/server run dev",
+    "build": "npm --prefix levelup run build",
+    "preview": "npm --prefix levelup run preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "firebase": "^12.8.0",
+    "three": "^0.182.0"
+  }
+}
