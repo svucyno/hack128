@@ -718,8 +718,13 @@ app.listen(PORT, () => {
   if (!resendKey) {
     console.warn("RESEND_API_KEY is missing. Email endpoints will return 500 until it is configured.");
   }
+  if (!process.env.CAREER_GUIDANCE_GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+    console.warn(
+      "CAREER_GUIDANCE_GEMINI_API_KEY / GEMINI_API_KEY is missing. Career guidance will use fallback logic.",
+    );
+  }
   if (!process.env.GEMINI_API_KEY) {
-    console.warn("GEMINI_API_KEY is missing. Career guidance and resume analyzer will use fallback logic.");
+    console.warn("GEMINI_API_KEY is missing. Resume analyzer will use fallback logic.");
   }
   console.log(`ML gateway target: ${getMlServiceBaseUrl()}`);
   console.log(`OTP server running on http://localhost:${PORT}`);

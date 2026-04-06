@@ -145,6 +145,20 @@ const PERFORMANCE_INSIGHTS_SCHEMA = {
   required: ["riskLevel", "summary", "signals", "missingData", "suggestions"],
 };
 
+const GENERAL_ANSWER_SCHEMA = {
+  type: "object",
+  properties: {
+    answer: { type: "string" },
+    summary: { type: "string" },
+    confidence: { type: "string" },
+    suggestedQuestions: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: ["answer", "summary", "confidence", "suggestedQuestions"],
+};
+
 const CAREER_GUIDANCE_SCHEMA = {
   type: "object",
   properties: {
@@ -285,11 +299,14 @@ export async function runCareerGuidanceChat({
 }
 
 function getGeminiRuntime() {
-  const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
+  const apiKey = String(
+    process.env.CAREER_GUIDANCE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
+  ).trim();
   const model =
-    !process.env.GEMINI_MODEL || process.env.GEMINI_MODEL === "gemini-2.0-flash"
+    !process.env.CAREER_GUIDANCE_GEMINI_MODEL &&
+    (!process.env.GEMINI_MODEL || process.env.GEMINI_MODEL === "gemini-2.0-flash")
       ? "gemini-2.5-flash"
-      : process.env.GEMINI_MODEL;
+      : process.env.CAREER_GUIDANCE_GEMINI_MODEL || process.env.GEMINI_MODEL;
 
   if (!apiKey) {
     cachedGeminiKey = "";
@@ -872,8 +889,8 @@ function buildFallbackGuidance({ context, message }) {
   let finalSuggestions = structuredReport.finalSuggestions;
 
   if (promptType === "greeting") {
-    answer = `Hi ${context.student.name || "there"}! I can help with career paths, ATS improvement, suitable roles, project ideas, interview prep, and personalized roadmaps. Tell me what you want to work on.`;
-    summary = "Ready to help with career guidance, ATS improvement, and roadmap planning.";
+    answer = `Hi ${context.student.name || "there"}! I can help with career planning, ATS improvement, interviews, project ideas, learning plans, and general questions too. Ask directly, and I’ll answer while using your saved context when it helps.`;
+    summary = "Ready to answer career and general questions with optional profile context.";
     confidence = "high";
     focusAreas = [];
     responseRoadmap = emptyRoadmap;
@@ -885,8 +902,8 @@ function buildFallbackGuidance({ context, message }) {
     performanceInsights = emptyPerformanceInsights();
     finalSuggestions = [];
   } else if (promptType === "thanks") {
-    answer = `You're welcome. If you want, I can next help with role fit, ATS fixes, project selection, or a personalized roadmap.`;
-    summary = "Conversation can continue with role fit, ATS improvement, or roadmap planning.";
+    answer = `You're welcome. If you want, I can continue with career planning, ATS fixes, project selection, interview prep, or any other question you want to ask next.`;
+    summary = "Conversation can continue with career or general follow-up questions.";
     confidence = "high";
     focusAreas = [];
     responseRoadmap = emptyRoadmap;
@@ -898,8 +915,8 @@ function buildFallbackGuidance({ context, message }) {
     performanceInsights = emptyPerformanceInsights();
     finalSuggestions = [];
   } else if (promptType === "help") {
-    answer = `I can help you choose the right role, improve your ATS score, find missing skills, create a weekly roadmap, suggest projects, and prepare for interviews. Tell me your goal and I will respond to that specific need.`;
-    summary = "Available for role advice, ATS analysis, projects, interview prep, and roadmaps.";
+    answer = `I can help you choose roles, improve ATS, find missing skills, create roadmaps, suggest projects, prepare for interviews, explain concepts, brainstorm options, and answer general questions. Ask naturally and I’ll respond directly.`;
+    summary = "Available for career guidance, learning support, and general question answering.";
     confidence = "high";
     responseRoadmap = emptyRoadmap;
     responseRoles = [];
@@ -931,9 +948,9 @@ function buildFallbackGuidance({ context, message }) {
     answer = `The next skills to learn are ${suggestedFocusAreas.join(", ") || "role-specific fundamentals"}. Learn them in project context, not as isolated theory, so your resume and interviews both improve at the same time.`;
   } else if (promptType === "general") {
     answer = context.resume.available
-      ? `I can help, but I need a bit more direction. Do you want role guidance, ATS improvement, project ideas, interview prep, or a personalized roadmap?`
-      : `I can help with career guidance, but I need either a clearer question or your resume analysis to personalize the answer better.`;
-    summary = "Waiting for a more specific question to provide sharper guidance.";
+      ? `I can answer general questions too. Ask directly, and if your saved profile or resume context helps, I’ll use it to make the answer more relevant.`
+      : `I can answer general questions directly, and I can personalize career guidance more deeply once a resume analysis is available.`;
+    summary = "General answering is available, with career context used when relevant.";
     responseRoadmap = emptyRoadmap;
   }
 
@@ -1363,9 +1380,16 @@ function inferRolesFromProfile(context) {
 }
 
 async function generateGeminiGuidance({ client, model, context, history, message }) {
+  const promptType = getPromptType(message);
+  const primaryMode = promptType === "general" ? "general" : "career";
+
+  if (primaryMode === "general") {
+    return generateGeminiGeneralGuidance({ client, model, context, history, message });
+  }
+
   const response = await client.models.generateContent({
     model,
-    contents: buildGeminiContents({ context, history, message }),
+    contents: buildGeminiContents({ context, history, message, assistantMode: primaryMode }),
     config: {
       responseMimeType: "application/json",
       responseSchema: CAREER_GUIDANCE_SCHEMA,
@@ -1373,18 +1397,60 @@ async function generateGeminiGuidance({ client, model, context, history, message
     },
   });
 
+  let parsed = parseGeminiResponse(response?.text);
+
+  if (looksLikeDomainRefusal(parsed?.answer)) {
+    return generateGeminiGeneralGuidance({ client, model, context, history, message });
+  }
+
   return {
     provider: "AI",
     model,
-    ...parseGeminiResponse(response?.text),
+    ...parsed,
   };
 }
 
-function buildGeminiContents({ context, history, message }) {
+async function generateGeminiGeneralGuidance({ client, model, context, history, message }) {
+  const response = await client.models.generateContent({
+    model,
+    contents: buildGeminiContents({
+      context,
+      history,
+      message,
+      assistantMode: "general",
+    }),
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: GENERAL_ANSWER_SCHEMA,
+      temperature: 0.55,
+    },
+  });
+
+  const parsed = parseGeminiResponse(response?.text);
+  return {
+    provider: "AI",
+    model,
+    answer: String(parsed?.answer || "").trim(),
+    summary: String(parsed?.summary || "").trim(),
+    confidence: String(parsed?.confidence || "").trim(),
+    suggestedQuestions: Array.isArray(parsed?.suggestedQuestions)
+      ? parsed.suggestedQuestions
+      : [],
+  };
+}
+
+function buildGeminiContents({ context, history, message, assistantMode = "career" }) {
   const contents = [
     {
       role: "user",
-      parts: [{ text: buildSystemInstruction(context) }],
+      parts: [
+        {
+          text:
+            assistantMode === "general"
+              ? buildGeneralSystemInstruction(context)
+              : buildSystemInstruction(context),
+        },
+      ],
     },
   ];
 
@@ -1405,12 +1471,17 @@ function buildGeminiContents({ context, history, message }) {
 
 function buildSystemInstruction(context) {
   return [
-    "You are LevelUp Advanced AI Career Intelligence System.",
-    "Behave like a high-quality AI assistant for students, internships, placements, higher learning, and career growth.",
-    "Use the student context below as the source of truth for personalization.",
+    "You are LevelUp AI Assistant.",
+    "Behave like a high-quality AI assistant that can answer both career questions and general questions.",
+    "Use the student context below as the source of truth for personalization when it is relevant, but do not block or refuse non-career questions just because they are outside the career domain.",
+    "Do not say that your primary function is limited to career growth, resume help, or learning support.",
+    "Never tell the user to use a search engine instead of answering a question that you can answer yourself.",
+    "If the user asks a general knowledge question, answer it directly with the same quality as a normal assistant.",
     "Your internal modules are: Resume Parser, ATS Scoring Engine, Resume Quality Analysis, Skill Gap Analyzer, Career Recommendation Engine, Learning Roadmap Generator, Student Performance Prediction, Adaptive Learning System, Document Summarizer, and Collaborative Learning + Tutor System.",
     "For casual messages like hi, hello, thanks, or help, reply naturally first and keep the structured sections mostly empty instead of forcing a full report.",
-    "For substantive career, resume, ATS, role, roadmap, project, interview, or learning questions, return a real structured career-intelligence response using the schema.",
+    "For any user question, answer directly and helpfully.",
+    "For substantive career, resume, ATS, role, roadmap, project, interview, or learning questions, return a strong structured career-intelligence response using the schema.",
+    "For non-career questions, still answer clearly and naturally, and keep career-specific structured fields empty or minimal unless they genuinely help.",
     "Always personalize. Do not give generic filler.",
     "If the user is wrong, politely correct them and explain what is right.",
     "Do not invent resume fields, academic metrics, or user history. Use empty strings or empty arrays when data is missing.",
@@ -1433,6 +1504,39 @@ function buildSystemInstruction(context) {
     "Student context:",
     JSON.stringify(context, null, 2),
   ].join("\n");
+}
+
+function buildGeneralSystemInstruction(context) {
+  return [
+    "You are LevelUp AI Assistant.",
+    "Answer the user's question directly, fully, and naturally.",
+    "You can answer general knowledge, factual, historical, conceptual, technical, and explanatory questions.",
+    "Do not claim that you are limited to career topics.",
+    "Do not tell the user to use a search engine or another assistant for general questions.",
+    "Use the student context below only when it materially improves the answer. Otherwise answer like a normal high-quality assistant.",
+    "For non-career questions, keep career-specific structured fields empty or minimal unless they genuinely help.",
+    "Return valid JSON matching the schema exactly.",
+    "",
+    "Student context:",
+    JSON.stringify(context, null, 2),
+  ].join("\n");
+}
+
+function looksLikeDomainRefusal(answer) {
+  const normalized = String(answer || "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    "my primary function is",
+    "i am not equipped to answer",
+    "outside of career",
+    "outside the career domain",
+    "recommend using a search engine",
+    "general-purpose ai assistant",
+    "cannot answer general knowledge",
+  ].some((pattern) => normalized.includes(pattern));
 }
 
 function parseGeminiResponse(rawText) {
