@@ -77,6 +77,61 @@ export function normalizeMockInterviewState(candidate) {
   };
 }
 
+export function buildInterviewWeaknessRadar(candidate) {
+  const state = normalizeMockInterviewState(candidate);
+  const completedSessions = state.sessions.filter((session) => session.status === "completed");
+  const recentSessions = completedSessions.slice(0, 6);
+  const turns = recentSessions.flatMap((session) =>
+    (Array.isArray(session.turns) ? session.turns : []).map((turn) => ({
+      ...turn,
+      sessionRole: session.role,
+      interviewType: session.interviewType,
+      focusAreas: session.focusAreas || [],
+    })),
+  );
+
+  if (!turns.length) {
+    return {
+      available: false,
+      dimensions: [],
+      weakestDimension: null,
+      weakestQuestionType: null,
+      confidenceSignal: null,
+      recurringWeakAreas: state.weakAreasTrend.slice(0, 3),
+      recommendedDrill: null,
+    };
+  }
+
+  const dimensions = [
+    buildDimensionSnapshot("Clarity", turns, "clarityScore", 20),
+    buildDimensionSnapshot("Concept", turns, "conceptUnderstandingScore", 25),
+    buildDimensionSnapshot("Structure", turns, "structureScore", 15),
+    buildDimensionSnapshot("Examples", turns, "practicalExamplesScore", 20),
+    buildDimensionSnapshot("Communication", turns, "communicationScore", 20),
+  ].sort((left, right) => left.health - right.health);
+
+  const weakestDimension = dimensions[0] || null;
+  const weakestQuestionType = buildWeakestQuestionType(turns);
+  const confidenceSignal = buildConfidenceSignal(turns);
+  const recurringWeakAreas = state.weakAreasTrend.slice(0, 3);
+  const recommendedDrill = buildRecommendedDrill({
+    weakestDimension,
+    weakestQuestionType,
+    recurringWeakAreas,
+    turns,
+  });
+
+  return {
+    available: true,
+    dimensions,
+    weakestDimension,
+    weakestQuestionType,
+    confidenceSignal,
+    recurringWeakAreas,
+    recommendedDrill,
+  };
+}
+
 export function startMockInterviewSession(state, sessionPayload) {
   const currentState = normalizeMockInterviewState(state);
   const incomingSession = normalizeSession(sessionPayload);
@@ -974,6 +1029,143 @@ function collectTurnItems(turns, field, maxItems) {
     maxItems,
     180,
   );
+}
+
+function buildDimensionSnapshot(label, turns, scoreField, maxScore) {
+  const attempts = (Array.isArray(turns) ? turns : []).filter((turn) =>
+    Number.isFinite(Number(turn?.[scoreField])),
+  );
+  const average = attempts.length
+    ? clampNumber(
+        Math.round(
+          attempts.reduce((sum, turn) => sum + Number(turn?.[scoreField] || 0), 0) / attempts.length,
+        ),
+        0,
+        maxScore,
+      )
+    : 0;
+  const health = maxScore ? Math.round((average / maxScore) * 100) : 0;
+
+  return {
+    label,
+    average,
+    maxScore,
+    health,
+    attempts: attempts.length,
+    note: buildDimensionNote(label, health),
+  };
+}
+
+function buildDimensionNote(label, health) {
+  if (health >= 80) {
+    return `${label} is holding up well.`;
+  }
+  if (health >= 60) {
+    return `${label} is workable but still inconsistent.`;
+  }
+  return `${label} is the biggest drag on current interview scores.`;
+}
+
+function buildWeakestQuestionType(turns) {
+  const grouped = new Map();
+
+  (Array.isArray(turns) ? turns : []).forEach((turn) => {
+    const label = truncateText(turn?.questionType || "", 80);
+    if (!label) {
+      return;
+    }
+
+    const entry = grouped.get(label) || { label, total: 0, count: 0 };
+    entry.total += clampNumber(turn?.score, 0, 100);
+    entry.count += 1;
+    grouped.set(label, entry);
+  });
+
+  return Array.from(grouped.values())
+    .map((entry) => ({
+      label: entry.label,
+      attempts: entry.count,
+      averageScore: entry.count ? clampNumber(Math.round(entry.total / entry.count), 0, 100) : 0,
+    }))
+    .sort((left, right) => left.averageScore - right.averageScore || right.attempts - left.attempts)[0] || null;
+}
+
+function buildConfidenceSignal(turns) {
+  const grouped = new Map();
+
+  (Array.isArray(turns) ? turns : []).forEach((turn) => {
+    const level = normalizeConfidenceLevel(turn?.confidenceLevel);
+    const entry = grouped.get(level) || { level, total: 0, count: 0 };
+    entry.total += clampNumber(turn?.score, 0, 100);
+    entry.count += 1;
+    grouped.set(level, entry);
+  });
+
+  const low = grouped.get("low");
+  const high = grouped.get("high");
+  const lowAverage = low?.count ? clampNumber(Math.round(low.total / low.count), 0, 100) : null;
+  const highAverage = high?.count ? clampNumber(Math.round(high.total / high.count), 0, 100) : null;
+
+  if (low?.count && low.count >= 2) {
+    return {
+      label: "Confidence dip under pressure",
+      note:
+        lowAverage != null && highAverage != null
+          ? `Low-confidence answers average ${lowAverage}/100 vs ${highAverage}/100 when confidence is high.`
+          : "Low-confidence answers are showing up repeatedly in saved sessions.",
+    };
+  }
+
+  if (high?.count) {
+    return {
+      label: "Confidence is mostly stable",
+      note: highAverage != null ? `High-confidence answers are averaging ${highAverage}/100.` : "",
+    };
+  }
+
+  return {
+    label: "Confidence data is still limited",
+    note: "Complete a few more turns to reveal a stronger confidence pattern.",
+  };
+}
+
+function buildRecommendedDrill({ weakestDimension, weakestQuestionType, recurringWeakAreas, turns }) {
+  const latestTurn = (Array.isArray(turns) ? turns : [])[turns.length - 1] || {};
+  const focusAreas = normalizeStringArray(
+    [
+      recurringWeakAreas[0]?.label,
+      recurringWeakAreas[1]?.label,
+      weakestDimension?.label === "Examples" ? "Concrete examples" : "",
+      weakestDimension?.label === "Structure" ? "Answer structure" : "",
+      weakestDimension?.label === "Clarity" ? "Simple explanation" : "",
+      ...(Array.isArray(latestTurn.focusAreas) ? latestTurn.focusAreas : []),
+    ],
+    4,
+    120,
+  );
+  const role = truncateText(latestTurn.sessionRole || "", 120);
+  const interviewType =
+    weakestQuestionType?.label === "Behavioral"
+      ? "hr"
+      : weakestQuestionType?.label === "Teaching Simulation"
+        ? "domain"
+        : normalizeInterviewTypeValue(latestTurn.interviewType || "technical");
+
+  return {
+    role,
+    interviewType,
+    difficulty:
+      weakestDimension && weakestDimension.health < 55
+        ? "medium"
+        : "easy",
+    maxQuestions: 3,
+    focusAreas,
+    headline: `Run a ${interviewType.toUpperCase()} drill on ${focusAreas[0] || weakestDimension?.label || "your weakest area"}.`,
+    reason:
+      weakestQuestionType && weakestDimension
+        ? `${weakestQuestionType.label} questions and ${weakestDimension.label.toLowerCase()} are pulling the score down most often.`
+        : "Repeat a short targeted drill to improve the weakest repeated signal.",
+  };
 }
 
 function buildWeakAreasTrend(sessions) {

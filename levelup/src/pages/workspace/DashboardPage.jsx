@@ -1,9 +1,12 @@
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  Bot,
   Briefcase,
+  CalendarDays,
   FileText,
   Mail,
+  Mic,
   Phone,
   Sparkles,
   Target,
@@ -14,10 +17,13 @@ import { Link } from "react-router-dom";
 import GlassCard from "../../components/workspace/GlassCard";
 import PageHeader from "../../components/workspace/PageHeader";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
+import { normalizeCompanyPrepPacks } from "../../lib/companyPrep";
+import { normalizeMockInterviewState } from "../../lib/mockInterview";
 import {
   isResumeOwnedByLoggedInUser,
   normalizeResumeName,
 } from "../../lib/resumeIdentity";
+import { normalizeJobApplications } from "../../lib/userData";
 
 const HOW_TO_STEPS = [
   {
@@ -50,6 +56,9 @@ export default function DashboardPage() {
   const user = useWorkspaceStore((state) => state.user);
   const profile = useWorkspaceStore((state) => state.profile);
   const profileReady = useWorkspaceStore((state) => state.profileReady);
+  const jobApplications = useWorkspaceStore((state) => state.jobApplications);
+  const companyPrepPacks = useWorkspaceStore((state) => state.companyPrepPacks);
+  const calendarTasks = useWorkspaceStore((state) => state.calendarTasks);
 
   const displayName = profile?.name || user.name || "Student";
   const displayEmail = profile?.email || user.email || "Not available";
@@ -62,6 +71,13 @@ export default function DashboardPage() {
     normalizeResumeName(resumeName) &&
     !resumeNameMatches;
   const visibleResumeOverview = resumeNameMatches ? resumeOverview : null;
+  const careerTwin = buildCareerTwin({
+    profile,
+    visibleResumeOverview,
+    jobApplications,
+    companyPrepPacks,
+    calendarTasks,
+  });
 
   const summaryCards = [
     {
@@ -195,6 +211,154 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      <GlassCard className="overflow-hidden p-6 lg:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-red-100">
+              <Bot className="h-4 w-4" />
+              Career Twin
+            </div>
+            <div className="mt-4 text-3xl font-black tracking-tight text-white">
+              One live read of your placement system.
+            </div>
+            <div className="mt-3 max-w-3xl text-sm leading-8 text-white/65">
+              This section combines your verified resume state, target role, application pipeline,
+              prep packs, calendar load, and interview patterns to suggest the single next move that
+              improves placement readiness fastest.
+            </div>
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
+            Live from saved workspace data
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <TwinMetricCard
+                label="Target Role"
+                value={profileReady ? careerTwin.targetRole : "Loading..."}
+                helper="Current role signal across guidance and resume"
+              />
+              <TwinMetricCard
+                label="Open Pipeline"
+                value={profileReady ? `${careerTwin.openApplications}` : "Loading..."}
+                helper={`${careerTwin.readyApplications} ready · ${careerTwin.interviewingApplications} interviewing`}
+              />
+              <TwinMetricCard
+                label="Interview Drag"
+                value={profileReady ? careerTwin.topWeakSignal : "Loading..."}
+                helper={careerTwin.interviewSignalHelper}
+              />
+              <TwinMetricCard
+                label="Prep Load"
+                value={profileReady ? `${careerTwin.prepPackCount} prep packs` : "Loading..."}
+                helper={`${careerTwin.calendarTaskCount} task reminders live`}
+              />
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+              <div className="rounded-[30px] border border-white/10 bg-white/5 p-5">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/45">
+                  Twin Read
+                </div>
+                <div className="mt-4 text-lg font-semibold text-white">
+                  {careerTwin.headline}
+                </div>
+                <div className="mt-4 grid gap-3">
+                  {careerTwin.insights.map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-[20px] border border-white/10 bg-black/20 px-4 py-3 text-sm leading-7 text-white/68"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[30px] border border-white/10 bg-white/5 p-5">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/45">
+                  System Chain
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {careerTwin.chain.map((item) => (
+                    <span
+                      key={item.label}
+                      className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                        item.active
+                          ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-100"
+                          : "border-white/10 bg-black/20 text-white/62"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+
+                {careerTwin.priorityTags.length ? (
+                  <>
+                    <div className="mt-5 text-xs font-semibold uppercase tracking-[0.3em] text-white/45">
+                      Priority Tags
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {careerTwin.priorityTags.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full border border-amber-300/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="rounded-[32px] border p-5 lg:p-6"
+            style={{
+              borderColor: "rgba(239,68,68,0.18)",
+              background:
+                "linear-gradient(180deg,rgba(239,68,68,0.12),rgba(255,255,255,0.03))",
+            }}
+          >
+            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-red-100/90">
+              Next Best Move
+            </div>
+            <div className="mt-4 text-2xl font-black tracking-tight text-white">
+              {careerTwin.nextMove.title}
+            </div>
+            <div className="mt-3 text-sm leading-8 text-white/72">
+              {careerTwin.nextMove.description}
+            </div>
+
+            <Link
+              to={careerTwin.nextMove.to}
+              className="mt-6 inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-500/10 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+            >
+              {careerTwin.nextMove.cta}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+
+            <div className="mt-6 grid gap-3">
+              {careerTwin.nextMove.supportingActions.map((action) => (
+                <Link
+                  key={action.to}
+                  to={action.to}
+                  className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-white/70 transition hover:-translate-y-0.5 hover:bg-black/30"
+                >
+                  <div className="font-semibold text-white">{action.label}</div>
+                  <div className="mt-1">{action.helper}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
       <div className="grid gap-6 xl:grid-cols-2">
         <OverviewPanel title="Account" icon={Sparkles}>
           <div className="mt-6 space-y-4">
@@ -316,6 +480,18 @@ function DetailRow({ label, value, icon: Icon }) {
   );
 }
 
+function TwinMetricCard({ label, value, helper }) {
+  return (
+    <div className="rounded-[26px] border border-white/10 bg-white/5 p-5">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
+        {label}
+      </div>
+      <div className="mt-4 text-2xl font-black tracking-tight text-white">{value}</div>
+      <div className="mt-2 text-sm leading-7 text-white/58">{helper}</div>
+    </div>
+  );
+}
+
 function ActionCard({ title, description, to, icon: Icon }) {
   return (
     <Link to={to}>
@@ -361,4 +537,278 @@ function getResumeStatusLabel(resumeOverview) {
   }
 
   return "Uploaded";
+}
+
+function buildCareerTwin({
+  profile,
+  visibleResumeOverview,
+  jobApplications,
+  companyPrepPacks,
+  calendarTasks,
+}) {
+  const guidance = profile?.careerGuidance || {};
+  const applications = normalizeJobApplications(jobApplications);
+  const prepPacks = normalizeCompanyPrepPacks(companyPrepPacks);
+  const mockInterview = normalizeMockInterviewState(profile?.mockInterview);
+  const missingSkills = uniqueStrings([
+    ...(guidance.latestSkillGapAnalysis?.prioritySkills || []),
+    ...(guidance.latestSkillGapAnalysis?.missingSkills || []),
+    ...(visibleResumeOverview?.missingSkills || []),
+  ]);
+  const targetRole =
+    guidance.latestTargetRole ||
+    visibleResumeOverview?.topRole ||
+    guidance.latestRecommendedRoles?.[0]?.role ||
+    "Not set";
+  const atsScore = Number.isFinite(Number(visibleResumeOverview?.atsScore))
+    ? Math.round(Number(visibleResumeOverview.atsScore))
+    : null;
+  const openApplications = applications.filter((item) => item.status !== "closed");
+  const readyApplications = openApplications.filter((item) => item.status === "ready");
+  const interviewingApplications = openApplications.filter((item) => item.status === "interviewing");
+  const topWeakArea = mockInterview.weakAreasTrend[0]?.label || "";
+  const nearestDeadline = getNearestDeadline(openApplications);
+  const nextMove = buildCareerTwinNextMove({
+    resumeReady: Boolean(visibleResumeOverview?.latestResumeFileName),
+    targetRole,
+    atsScore,
+    missingSkills,
+    readyApplications,
+    interviewingApplications,
+    openApplications,
+    topWeakArea,
+    prepPackCount: prepPacks.length,
+  });
+
+  const headline = !visibleResumeOverview?.latestResumeFileName
+    ? "The system is waiting for a trusted resume analysis before it can personalize the full placement loop."
+    : `You are currently leaning toward ${targetRole}, with ${openApplications.length} open application${openApplications.length === 1 ? "" : "s"} feeding the pipeline.`;
+
+  const insights = uniqueStrings([
+    atsScore != null
+      ? `ATS is currently ${atsScore}/100, so ${atsScore >= 80 ? "the bottleneck is no longer the resume baseline alone." : "resume quality is still a direct lever for better role fit and shortlist probability."}`
+      : "No ATS score is available yet, so the system is missing its strongest ranking signal.",
+    nearestDeadline
+      ? `The nearest tracked deadline is ${nearestDeadline.company} · ${nearestDeadline.role} on ${nearestDeadline.deadline}.`
+      : "No deadline-driven pressure is visible in the current tracker.",
+    topWeakArea
+      ? `Mock interviews keep flagging ${topWeakArea} as the most repeated weak pattern.`
+      : missingSkills[0]
+        ? `${missingSkills[0]} is still showing up as the main missing skill signal.`
+        : "The profile has no single dominant weak signal yet, which means execution volume is the next lever.",
+  ]).slice(0, 3);
+
+  return {
+    targetRole,
+    openApplications: openApplications.length,
+    readyApplications: readyApplications.length,
+    interviewingApplications: interviewingApplications.length,
+    prepPackCount: prepPacks.length,
+    calendarTaskCount: Array.isArray(calendarTasks) ? calendarTasks.length : 0,
+    topWeakSignal: topWeakArea || missingSkills[0] || "No repeated gap yet",
+    interviewSignalHelper:
+      topWeakArea
+        ? `${mockInterview.completedSessions} completed sessions are feeding this signal`
+        : mockInterview.completedSessions
+          ? `${mockInterview.completedSessions} completed sessions with no repeated weak area`
+          : "Complete scored interviews to reveal a repeated pattern",
+    headline,
+    insights,
+    chain: [
+      { label: "Resume", active: Boolean(visibleResumeOverview?.latestResumeFileName) },
+      { label: "Role", active: targetRole !== "Not set" },
+      { label: "Apply", active: openApplications.length > 0 },
+      { label: "Prep", active: prepPacks.length > 0 },
+      { label: "Interview", active: mockInterview.totalSessions > 0 },
+    ],
+    priorityTags: uniqueStrings([
+      ...(missingSkills.slice(0, 2) || []),
+      nearestDeadline ? `Deadline: ${nearestDeadline.company}` : "",
+      readyApplications[0]?.company ? `Ready: ${readyApplications[0].company}` : "",
+    ]).slice(0, 4),
+    nextMove,
+  };
+}
+
+function buildCareerTwinNextMove({
+  resumeReady,
+  targetRole,
+  atsScore,
+  missingSkills,
+  readyApplications,
+  interviewingApplications,
+  openApplications,
+  topWeakArea,
+  prepPackCount,
+}) {
+  if (!resumeReady) {
+    return {
+      title: "Analyze your resume first",
+      description:
+        "The entire placement loop gets stronger once ATS score, role fit, and missing skills are available from a verified resume analysis.",
+      cta: "Open Resume Analyzer",
+      to: "/workspace/resume-analyzer",
+      supportingActions: [
+        {
+          label: "Open Career Guidance",
+          helper: "Set a target role after the resume analysis lands.",
+          to: "/workspace/career-guidance",
+        },
+      ],
+    };
+  }
+
+  if (!targetRole || targetRole === "Not set") {
+    return {
+      title: "Set a target role",
+      description:
+        "The system can rank jobs, skill gaps, and prep packs better once Career Guidance locks onto one role direction.",
+      cta: "Open Career Guidance",
+      to: "/workspace/career-guidance",
+      supportingActions: [
+        {
+          label: "Review Resume Signals",
+          helper: "Check whether the current top role from the resume still makes sense.",
+          to: "/workspace/resume-analyzer",
+        },
+      ],
+    };
+  }
+
+  if (readyApplications.length) {
+    const nextApplication = readyApplications[0];
+    return {
+      title: `Submit the ready ${nextApplication.company} application`,
+      description:
+        "A tracker entry is already marked Ready To Apply, so the fastest gain now is moving it into the submitted pipeline and activating follow-up reminders.",
+      cta: "Open Job Tracker",
+      to: "/workspace/job-applications",
+      supportingActions: [
+        {
+          label: "Review Company Prep",
+          helper: "Check likely rounds and risk areas before you submit.",
+          to: "/workspace/company-prep",
+        },
+      ],
+    };
+  }
+
+  if (interviewingApplications.length || topWeakArea) {
+    return {
+      title: "Run one targeted mock interview",
+      description:
+        topWeakArea
+          ? `${topWeakArea} is the weakest repeated interview signal right now, so a focused drill will raise readiness faster than another generic practice round.`
+          : "An interview is already active in the pipeline, so the best next move is a targeted practice round before the real process advances.",
+      cta: "Open Mock Interview",
+      to: "/workspace/mock-interview",
+      supportingActions: [
+        {
+          label: "Open Company Prep",
+          helper: "Use likely rounds and topics to focus the drill.",
+          to: "/workspace/company-prep",
+        },
+      ],
+    };
+  }
+
+  if (atsScore != null && atsScore < 80) {
+    return {
+      title: "Push ATS above the current baseline",
+      description:
+        "The resume still has headroom. Raising ATS before scaling applications improves role fit, keyword coverage, and tracker quality at the same time.",
+      cta: "Improve Resume",
+      to: "/workspace/resume-analyzer",
+      supportingActions: [
+        {
+          label: "Open Skill Gap Analysis",
+          helper: "Prioritize the skill signals that are dragging ATS and role match down.",
+          to: "/workspace/skill-gap-analysis",
+        },
+      ],
+    };
+  }
+
+  if (missingSkills.length) {
+    return {
+      title: `Close ${missingSkills[0]} before scaling applications`,
+      description:
+        "The current role direction is clear, but one visible skill gap is still holding back stronger fit and better prep outcomes.",
+      cta: "Open Skill Gap Analysis",
+      to: "/workspace/skill-gap-analysis",
+      supportingActions: [
+        {
+          label: "Open Adaptive Learning",
+          helper: "Turn the gap into a concrete learning sprint.",
+          to: "/workspace/adaptive-learning",
+        },
+      ],
+    };
+  }
+
+  if (!openApplications.length) {
+    return {
+      title: "Turn readiness into applications",
+      description:
+        "The profile is in workable shape, but the pipeline is empty. The next lift is to convert fit into live opportunities.",
+      cta: "Open Recommended Jobs",
+      to: "/workspace/recommended-jobs",
+      supportingActions: [
+        {
+          label: "Open Job Tracker",
+          helper: "Save shortlisted roles and begin the application loop.",
+          to: "/workspace/job-applications",
+        },
+      ],
+    };
+  }
+
+  return {
+    title: prepPackCount ? "Review your prep packs" : "Strengthen company-specific preparation",
+    description:
+      prepPackCount
+        ? "The system already has company-specific prep context saved, so the next gain is execution quality, not more setup."
+        : "You have live opportunities, but no saved prep context yet. Company prep will tighten interview readiness.",
+    cta: "Open Company Prep",
+    to: "/workspace/company-prep",
+    supportingActions: [
+      {
+        label: "Open Task Calendar",
+        helper: "Convert the next move into scheduled reminders and prep blocks.",
+        to: "/workspace/task-calendar",
+      },
+    ],
+  };
+}
+
+function uniqueStrings(values = []) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
+function getNearestDeadline(applications) {
+  return (Array.isArray(applications) ? applications : [])
+    .filter(
+      (item) =>
+        item.deadline &&
+        ["wishlist", "ready", "applied"].includes(String(item.status || "").toLowerCase()),
+    )
+    .map((item) => ({
+      company: item.company,
+      role: item.role,
+      deadline: item.deadline,
+      deadlineTime: new Date(item.deadline).getTime(),
+    }))
+    .filter((item) => !Number.isNaN(item.deadlineTime))
+    .sort((left, right) => left.deadlineTime - right.deadlineTime)[0] || null;
 }

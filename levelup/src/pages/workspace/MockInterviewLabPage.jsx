@@ -23,6 +23,7 @@ import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
 import {
   buildLocalMockInterviewAnswerResult,
   buildLocalMockInterviewSession,
+  buildInterviewWeaknessRadar,
   normalizeMockInterviewState,
   recordMockInterviewAnswer,
   startMockInterviewSession,
@@ -140,6 +141,10 @@ export default function MockInterviewLabPage() {
       ? Math.max(0, Math.round((liveNowMs - questionStartedAtMs) / 1000))
       : 0;
   const topWeakArea = interviewState.weakAreasTrend[0] || null;
+  const weaknessRadar = useMemo(
+    () => buildInterviewWeaknessRadar(interviewState),
+    [interviewState],
+  );
 
   useEffect(() => {
     setLocalInterviewState(normalizeMockInterviewState(profile?.mockInterview));
@@ -249,6 +254,26 @@ export default function MockInterviewLabPage() {
       ...current,
       [field]: value,
     }));
+  };
+
+  const handleApplyRadarDrill = () => {
+    if (!weaknessRadar.available || !weaknessRadar.recommendedDrill) {
+      return;
+    }
+
+    const drill = weaknessRadar.recommendedDrill;
+    setForm((current) => ({
+      ...current,
+      role: drill.role || current.role || defaultRole,
+      interviewType: drill.interviewType || current.interviewType,
+      difficulty: drill.difficulty || current.difficulty,
+      maxQuestions: String(drill.maxQuestions || current.maxQuestions || 3),
+      focusAreas: drill.focusAreas.length
+        ? drill.focusAreas.join("\n")
+        : current.focusAreas,
+    }));
+    setNotice("Weakness Radar loaded a targeted drill into the setup panel.");
+    setError("");
   };
 
   const handleStartInterview = async (event) => {
@@ -508,6 +533,119 @@ export default function MockInterviewLabPage() {
           helper={topWeakArea?.label || "No repeated weak area yet"}
         />
       </div>
+
+      {weaknessRadar.available ? (
+        <GlassCard className="p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="theme-text-strong text-xl font-black">Interview Weakness Radar</div>
+              <div className="theme-text-muted mt-2 text-sm leading-7">
+                This radar scans recent completed sessions to find the exact answer pattern that keeps
+                pulling scores down, then turns it into a focused next drill.
+              </div>
+            </div>
+            {weaknessRadar.recommendedDrill ? (
+              <button
+                type="button"
+                onClick={handleApplyRadarDrill}
+                className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
+                style={{
+                  borderColor: "rgba(239,68,68,0.22)",
+                  background: "rgba(239,68,68,0.1)",
+                  color: "var(--theme-text-strong)",
+                }}
+              >
+                <Target className="h-4 w-4" />
+                Load Targeted Drill
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <RadarSignalCard
+              label="Weakest Dimension"
+              title={weaknessRadar.weakestDimension?.label || "Not enough data"}
+              value={
+                weaknessRadar.weakestDimension
+                  ? `${weaknessRadar.weakestDimension.average}/${weaknessRadar.weakestDimension.maxScore}`
+                  : "N/A"
+              }
+              helper={weaknessRadar.weakestDimension?.note || "Complete a few scored sessions first."}
+            />
+            <RadarSignalCard
+              label="Weakest Question Type"
+              title={weaknessRadar.weakestQuestionType?.label || "Not enough data"}
+              value={
+                weaknessRadar.weakestQuestionType
+                  ? `${weaknessRadar.weakestQuestionType.averageScore}/100`
+                  : "N/A"
+              }
+              helper={
+                weaknessRadar.weakestQuestionType
+                  ? `${weaknessRadar.weakestQuestionType.attempts} tracked attempts`
+                  : "Question-type signal appears after completed sessions."
+              }
+            />
+            <RadarSignalCard
+              label="Confidence Pattern"
+              title={weaknessRadar.confidenceSignal?.label || "Not enough data"}
+              value="Signal"
+              helper={weaknessRadar.confidenceSignal?.note || "Confidence data builds over time."}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-white/42">
+                Dimension Health
+              </div>
+              <div className="mt-4 grid gap-3">
+                {weaknessRadar.dimensions.map((dimension) => (
+                  <RadarDimensionRow key={dimension.label} dimension={dimension} />
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-white/42">
+                Recommended Next Drill
+              </div>
+              <div className="mt-3 text-lg font-bold text-white">
+                {weaknessRadar.recommendedDrill?.headline || "No drill recommendation yet"}
+              </div>
+              <div className="mt-3 text-sm leading-7 text-white/68">
+                {weaknessRadar.recommendedDrill?.reason ||
+                  "Complete a few more scored answers to unlock the next targeted drill."}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {weaknessRadar.recommendedDrill?.focusAreas?.length ? (
+                  weaknessRadar.recommendedDrill.focusAreas.map((item) => (
+                    <SessionTag key={`radar-${item}`}>{item}</SessionTag>
+                  ))
+                ) : (
+                  <SessionTag>No drill focus yet</SessionTag>
+                )}
+              </div>
+
+              {weaknessRadar.recurringWeakAreas.length ? (
+                <>
+                  <div className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-white/42">
+                    Repeated Weak Areas
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {weaknessRadar.recurringWeakAreas.map((item) => (
+                      <SessionTag key={`radar-gap-${item.label}`}>
+                        {item.label} · {item.count}x
+                      </SessionTag>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </GlassCard>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
         <div className="space-y-6">
@@ -1032,6 +1170,52 @@ function ContextInfoCard({ label, value, helper }) {
       </div>
       <div className="mt-2 text-sm font-semibold text-white">{value}</div>
       <div className="mt-1 text-xs leading-6 text-white/55">{helper}</div>
+    </div>
+  );
+}
+
+function RadarSignalCard({ label, title, value, helper }) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-white/5 p-4">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+        {label}
+      </div>
+      <div className="mt-3 text-lg font-bold text-white">{title}</div>
+      <div className="mt-2 text-sm font-semibold text-pink-100">{value}</div>
+      <div className="mt-2 text-sm leading-7 text-white/58">{helper}</div>
+    </div>
+  );
+}
+
+function RadarDimensionRow({ dimension }) {
+  return (
+    <div className="rounded-[18px] border border-white/10 bg-black/20 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-white">{dimension.label}</div>
+          <div className="mt-1 text-xs text-white/52">
+            {dimension.average}/{dimension.maxScore} · {dimension.attempts} attempts
+          </div>
+        </div>
+        <div className="text-sm font-semibold text-white">{dimension.health}%</div>
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${dimension.health}%`,
+            background:
+              dimension.health >= 80
+                ? "linear-gradient(90deg,#34d399,#10b981)"
+                : dimension.health >= 60
+                  ? "linear-gradient(90deg,#facc15,#f59e0b)"
+                  : "linear-gradient(90deg,#fb7185,#ef4444)",
+          }}
+        />
+      </div>
+
+      <div className="mt-3 text-sm leading-7 text-white/62">{dimension.note}</div>
     </div>
   );
 }
