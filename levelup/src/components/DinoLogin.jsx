@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 function DinoMesh({ mood, eyesClosed, typing }) {
   const headRef = useRef(null);
@@ -169,9 +169,39 @@ function DinoMesh({ mood, eyesClosed, typing }) {
 }
 
 export default function DinoLogin({ mood = "idle", eyesClosed = false, typing = false }) {
+  const [webglFailed, setWebglFailed] = useState(false);
+
+  if (webglFailed) {
+    return (
+      <div className="dinoStage flex items-center justify-center">
+        <div className="rounded-[28px] border border-white/10 bg-black/25 px-6 py-8 text-center text-white/70 backdrop-blur-xl">
+          <div className="text-base font-semibold text-white">LevelUp Dino</div>
+          <div className="mt-2 text-sm leading-6">
+            3D preview is unavailable on this device, but the app will continue normally.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dinoStage">
-      <Canvas camera={{ position: [0, 0.8, 4.2], fov: 45 }}>
+      <Canvas
+        camera={{ position: [0, 0.8, 4.2], fov: 45 }}
+        fallback={
+          <div className="flex h-full items-center justify-center text-sm text-white/70">
+            3D preview unavailable
+          </div>
+        }
+        onCreated={({ gl }) => {
+          if (!gl) {
+            setWebglFailed(true);
+          }
+        }}
+        onError={() => {
+          setWebglFailed(true);
+        }}
+      >
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 3, 4]} intensity={1.2} />
         <pointLight position={[-2, 1, 2]} intensity={0.6} />

@@ -11,6 +11,18 @@ if (!root) {
   throw new Error("Missing root element");
 }
 
+if (
+  typeof window !== "undefined" &&
+  !window.location.hash &&
+  window.location.pathname !== "/"
+) {
+  const normalizedPath = window.location.pathname.startsWith("/")
+    ? window.location.pathname
+    : `/${window.location.pathname}`;
+  const nextUrl = `${window.location.origin}/#${normalizedPath}${window.location.search}`;
+  window.location.replace(nextUrl);
+}
+
 createRoot(root).render(
   <React.StrictMode>
     <ThemeProvider>

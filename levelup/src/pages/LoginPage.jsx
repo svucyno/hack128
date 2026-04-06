@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import DinoLogin from "../components/DinoLogin";
 import ThemeToggle from "../components/ThemeToggle";
-import { getAuthErrorMessage, signInStudentAccount } from "../lib/auth";
+import {
+  getAuthErrorMessage,
+  signInStudentAccount,
+  signInWithGooglePopup,
+  signInWithMicrosoftPopup,
+} from "../lib/auth";
 import { postServerJson } from "../lib/serverApi";
 
 export default function LoginPage() {
@@ -12,6 +17,7 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeProvider, setActiveProvider] = useState("");
   const [showResetPanel, setShowResetPanel] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -49,6 +55,12 @@ export default function LoginPage() {
     }
   }, [location.state]);
 
+  const isBusy =
+    isSubmitting ||
+    Boolean(activeProvider) ||
+    isSendingOtp ||
+    isResettingPassword;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setErrorMessage("");
@@ -63,6 +75,26 @@ export default function LoginPage() {
       setErrorMessage(getAuthErrorMessage(error, "login"));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleProviderLogin = async (provider) => {
+    setErrorMessage("");
+    setInfoMessage("");
+    setActiveProvider(provider);
+
+    try {
+      if (provider === "google") {
+        await signInWithGooglePopup();
+      } else {
+        await signInWithMicrosoftPopup();
+      }
+      navigate("/workspace/resume-analyzer");
+    } catch (error) {
+      console.error(`${provider} login error:`, error);
+      setErrorMessage(getAuthErrorMessage(error, "login"));
+    } finally {
+      setActiveProvider("");
     }
   };
 
@@ -202,6 +234,7 @@ export default function LoginPage() {
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35"
                 placeholder="you@student.edu"
                 required
+                disabled={isBusy}
               />
             </label>
             <label className="grid gap-2 text-sm">
@@ -210,7 +243,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleOpenResetPanel}
-                  disabled={isSubmitting || isSendingOtp || isResettingPassword}
+                  disabled={isBusy}
                   className="text-xs font-semibold uppercase tracking-[0.16em] text-red-200/85 transition hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Forgot Password?
@@ -223,12 +256,38 @@ export default function LoginPage() {
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35"
                 placeholder="Enter your password"
                 required
+                disabled={isBusy}
               />
             </label>
+            <div className="grid gap-3 pt-1 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => void handleProviderLogin("google")}
+                disabled={isBusy}
+                className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <GoogleIcon />
+                {activeProvider === "google" ? "Connecting..." : "Continue with Google"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleProviderLogin("microsoft")}
+                disabled={isBusy}
+                className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <MicrosoftIcon />
+                {activeProvider === "microsoft"
+                  ? "Connecting..."
+                  : "Continue with Microsoft"}
+              </button>
+            </div>
+            <div className="text-center text-xs uppercase tracking-[0.18em] text-white/35">
+              Or continue with email
+            </div>
             <div className="flex flex-wrap gap-4 pt-2">
               <button
                 className="rounded-2xl bg-gradient-to-r from-red-500 to-rose-400 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isSubmitting || isSendingOtp || isResettingPassword}
+                disabled={isBusy}
               >
                 {isSubmitting ? "Signing In..." : "Login"}
               </button>
@@ -236,7 +295,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => navigate("/register")}
                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-sm text-white/75"
-                disabled={isSubmitting || isSendingOtp || isResettingPassword}
+                disabled={isBusy}
               >
                 Create account
               </button>
@@ -275,6 +334,7 @@ export default function LoginPage() {
                     onChange={(event) => updateReset("email", event.target.value)}
                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35"
                     placeholder="you@student.edu"
+                    disabled={isBusy}
                   />
                 </label>
 
@@ -282,7 +342,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    disabled={isSendingOtp || isResettingPassword}
+                    disabled={isBusy}
                     className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white/80 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSendingOtp ? "Sending OTP..." : otpSent ? "Resend OTP" : "Send OTP"}
@@ -299,6 +359,7 @@ export default function LoginPage() {
                         onChange={(event) => updateReset("code", event.target.value)}
                         className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35"
                         placeholder="Enter 6-digit OTP"
+                        disabled={isBusy}
                       />
                     </label>
 
@@ -311,6 +372,7 @@ export default function LoginPage() {
                           onChange={(event) => updateReset("newPassword", event.target.value)}
                           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35"
                           placeholder="Enter new password"
+                          disabled={isBusy}
                         />
                       </label>
 
@@ -322,6 +384,7 @@ export default function LoginPage() {
                           onChange={(event) => updateReset("confirmPassword", event.target.value)}
                           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none placeholder:text-white/35"
                           placeholder="Re-enter new password"
+                          disabled={isBusy}
                         />
                       </label>
                     </div>
@@ -329,7 +392,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={handleResetPassword}
-                      disabled={isResettingPassword || isSendingOtp}
+                      disabled={isBusy}
                       className="rounded-2xl bg-gradient-to-r from-red-500 to-rose-400 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isResettingPassword ? "Resetting..." : "Reset Password"}
@@ -349,5 +412,39 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.5c-.2 1.2-.9 2.3-1.9 3.1l3 2.3c1.8-1.6 2.9-4 2.9-6.9 0-.7-.1-1.5-.2-2.2H12Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 21c2.6 0 4.7-.8 6.3-2.3l-3-2.3c-.8.5-1.9.9-3.3.9-2.5 0-4.6-1.7-5.4-3.9l-3.1 2.4C5.2 18.9 8.3 21 12 21Z"
+      />
+      <path
+        fill="#4A90E2"
+        d="M6.6 13.4c-.2-.5-.3-1-.3-1.4s.1-1 .3-1.4l-3.1-2.4C2.9 9.3 2.5 10.6 2.5 12s.4 2.7 1 3.8l3.1-2.4Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M12 6.7c1.4 0 2.6.5 3.6 1.4l2.7-2.7C16.7 3.9 14.6 3 12 3 8.3 3 5.2 5.1 3.5 8.2l3.1 2.4c.8-2.2 2.9-3.9 5.4-3.9Z"
+      />
+    </svg>
+  );
+}
+
+function MicrosoftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" fill="#F25022" />
+      <rect x="13" y="3" width="8" height="8" fill="#7FBA00" />
+      <rect x="3" y="13" width="8" height="8" fill="#00A4EF" />
+      <rect x="13" y="13" width="8" height="8" fill="#FFB900" />
+    </svg>
   );
 }

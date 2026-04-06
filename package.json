@@ -6,6 +6,7 @@
     "dev": "npm --prefix levelup run dev",
     "dev:client": "npm --prefix levelup run dev",
     "dev:server": "npm --prefix levelup/server run dev",
+    "dev:services": "./scripts/start-services.sh",
     "build": "npm --prefix levelup run build",
     "preview": "npm --prefix levelup run preview"
   },

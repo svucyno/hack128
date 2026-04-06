@@ -2,10 +2,19 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   updateProfile,
 } from "firebase/auth";
-import { push, ref, runTransaction, serverTimestamp, set, update } from "firebase/database";
-import { auth, db } from "../firebase";
+import {
+  get,
+  push,
+  ref,
+  runTransaction,
+  serverTimestamp,
+  set,
+  update,
+} from "firebase/database";
+import { auth, db, googleProvider, microsoftProvider } from "../firebase";
 import { buildUserRegistrationRecord } from "./userData";
 
 function normalizeEmail(email) {
@@ -14,6 +23,99 @@ function normalizeEmail(email) {
 
 function toSafeString(value) {
   return String(value || "").trim();
+}
+
+function getDisplayName(user, email = "") {
+  const safeEmail = normalizeEmail(email || user?.email || "");
+  const fallbackName = safeEmail.split("@")[0] || "Student";
+  return toSafeString(user?.displayName) || fallbackName;
+}
+
+async function syncStudentSignInRecord(user, { email, method }) {
+  const safeEmail = normalizeEmail(email || user?.email || "");
+  const displayName = getDisplayName(user, safeEmail);
+  const avatar = displayName.charAt(0).toUpperCase() || "S";
+  const nowIso = new Date().toISOString();
+  const userRef = ref(db, `users/${user.uid}`);
+  const snapshot = await get(userRef);
+
+  if (!snapshot.exists()) {
+    const baseRecord = buildUserRegistrationRecord({
+      fullName: displayName,
+      email: safeEmail,
+    });
+
+    await set(userRef, {
+      ...baseRecord,
+      name: displayName,
+      email: safeEmail,
+      role: "Student",
+      avatar,
+      emailVerified: Boolean(user.emailVerified),
+      updatedAt: serverTimestamp(),
+      updatedAtIso: nowIso,
+      account: {
+        ...baseRecord.account,
+        name: displayName,
+        email: safeEmail,
+        role: "Student",
+        authProvider: method,
+        registrationMethod: method,
+        emailVerified: Boolean(user.emailVerified),
+        loginCount: 0,
+        createdAt: serverTimestamp(),
+        createdAtIso: nowIso,
+        lastLoginAt: serverTimestamp(),
+        lastLoginAtIso: nowIso,
+        lastLoginMethod: method,
+      },
+      activity: {
+        ...baseRecord.activity,
+        lastAction: "login",
+        lastLoginAt: serverTimestamp(),
+        lastLoginAtIso: nowIso,
+      },
+    });
+  } else {
+    const existingProfile = snapshot.val() || {};
+
+    await update(userRef, {
+      name: displayName,
+      email: safeEmail,
+      role: "Student",
+      avatar,
+      emailVerified: Boolean(user.emailVerified),
+      lastLoginAt: serverTimestamp(),
+      lastLoginAtIso: nowIso,
+      updatedAt: serverTimestamp(),
+      updatedAtIso: nowIso,
+      "account/name": displayName,
+      "account/email": safeEmail,
+      "account/role": existingProfile?.account?.role || "Student",
+      "account/authProvider": method,
+      "account/registrationMethod": existingProfile?.account?.registrationMethod || method,
+      "account/emailVerified": Boolean(user.emailVerified),
+      "account/lastLoginAt": serverTimestamp(),
+      "account/lastLoginAtIso": nowIso,
+      "account/lastLoginMethod": method,
+      "activity/lastAction": "login",
+      "activity/lastLoginAt": serverTimestamp(),
+      "activity/lastLoginAtIso": nowIso,
+    });
+  }
+
+  await Promise.all([
+    runTransaction(ref(db, `users/${user.uid}/account/loginCount`), (currentValue) => {
+      const nextValue = Number(currentValue || 0);
+      return nextValue + 1;
+    }),
+    set(push(ref(db, `users/${user.uid}/activity/loginEvents`)), {
+      at: serverTimestamp(),
+      atIso: nowIso,
+      email: safeEmail,
+      method,
+    }),
+  ]);
 }
 
 export function getAuthErrorMessage(error, mode = "login") {
@@ -32,6 +134,14 @@ export function getAuthErrorMessage(error, mode = "login") {
       return "Too many attempts. Please wait a moment and try again.";
     case "auth/network-request-failed":
       return "Network error. Check your connection and try again.";
+    case "auth/popup-closed-by-user":
+      return "The sign-in popup was closed before completing.";
+    case "auth/popup-blocked":
+      return "Your browser blocked the sign-in popup. Allow popups and try again.";
+    case "auth/account-exists-with-different-credential":
+      return "This email is already linked to a different sign-in method.";
+    case "auth/operation-not-allowed":
+      return "This sign-in provider is not enabled yet.";
     default:
       return mode === "register"
         ? error?.message || "Could not create the account."
@@ -61,43 +171,29 @@ export async function registerStudentAccount(formData) {
 export async function signInStudentAccount(email, password) {
   const normalizedEmail = normalizeEmail(email);
   const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-  const nowIso = new Date().toISOString();
-  const displayName = toSafeString(credential.user.displayName) || "Student";
-
-  await Promise.all([
-    runTransaction(ref(db, `users/${credential.user.uid}/account/loginCount`), (currentValue) => {
-      const nextValue = Number(currentValue || 0);
-      return nextValue + 1;
-    }),
-    update(ref(db, `users/${credential.user.uid}`), {
-      name: displayName,
-      email: normalizedEmail,
-      role: "Student",
-      avatar: displayName.charAt(0).toUpperCase() || "S",
-      emailVerified: Boolean(credential.user.emailVerified),
-      lastLoginAt: serverTimestamp(),
-      lastLoginAtIso: nowIso,
-      updatedAt: serverTimestamp(),
-      updatedAtIso: nowIso,
-      "account/name": displayName,
-      "account/email": normalizedEmail,
-      "account/emailVerified": Boolean(credential.user.emailVerified),
-      "account/lastLoginAt": serverTimestamp(),
-      "account/lastLoginAtIso": nowIso,
-      "account/lastLoginMethod": "email_password",
-      "activity/lastAction": "login",
-      "activity/lastLoginAt": serverTimestamp(),
-      "activity/lastLoginAtIso": nowIso,
-    }),
-    set(push(ref(db, `users/${credential.user.uid}/activity/loginEvents`)), {
-      at: serverTimestamp(),
-      atIso: nowIso,
-      email: normalizedEmail,
-      method: "email_password",
-    }),
-  ]);
+  await syncStudentSignInRecord(credential.user, {
+    email: normalizedEmail,
+    method: "email_password",
+  });
 
   return credential.user;
+}
+
+async function signInWithSocialProvider(provider, method) {
+  const credential = await signInWithPopup(auth, provider);
+  await syncStudentSignInRecord(credential.user, {
+    email: credential.user.email || "",
+    method,
+  });
+  return credential.user;
+}
+
+export function signInWithGooglePopup() {
+  return signInWithSocialProvider(googleProvider, "google");
+}
+
+export function signInWithMicrosoftPopup() {
+  return signInWithSocialProvider(microsoftProvider, "microsoft");
 }
 
 export async function requestPasswordReset(email) {
