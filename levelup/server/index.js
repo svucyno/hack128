@@ -303,7 +303,7 @@ app.post("/resume-analyzer/analyze", async (req, res) => {
   ensureAdmin();
   if (!admin.apps.length) {
     return res.status(501).json({
-      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini resume analyzer.",
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the AI resume analyzer.",
     });
   }
 
@@ -353,7 +353,7 @@ app.post("/resume-analyzer/chat", async (req, res) => {
   ensureAdmin();
   if (!admin.apps.length) {
     return res.status(501).json({
-      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use Gemini resume chat.",
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use AI resume chat.",
     });
   }
 
@@ -400,7 +400,7 @@ app.post("/document-summarizer/summarize", async (req, res) => {
   ensureAdmin();
   if (!admin.apps.length) {
     return res.status(501).json({
-      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini document summarizer.",
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the AI document summarizer.",
     });
   }
 
@@ -445,7 +445,7 @@ app.post("/video-brief/summarize", async (req, res) => {
   ensureAdmin();
   if (!admin.apps.length) {
     return res.status(501).json({
-      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini video brief feature.",
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the AI video brief feature.",
     });
   }
 
@@ -493,7 +493,7 @@ app.post("/mock-interview/start", async (req, res) => {
   ensureAdmin();
   if (!admin.apps.length) {
     return res.status(501).json({
-      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini mock interview lab.",
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the AI mock interview lab.",
     });
   }
 
@@ -555,7 +555,7 @@ app.post("/mock-interview/answer", async (req, res) => {
   ensureAdmin();
   if (!admin.apps.length) {
     return res.status(501).json({
-      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the Gemini mock interview lab.",
+      error: "FIREBASE_SERVICE_ACCOUNT missing. Configure Admin SDK to use the AI mock interview lab.",
     });
   }
 

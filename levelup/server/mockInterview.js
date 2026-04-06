@@ -213,16 +213,16 @@ export async function runMockInterviewStart({
         context,
       });
       generated = normalizeStartPayload(aiSession, generated);
-      provider = "Gemini";
+      provider = "AI";
       model = runtime.model;
     } catch (error) {
       warning =
         error?.message ||
-        "Gemini could not start the mock interview, so a built-in interview flow was used.";
+        "AI could not start the mock interview, so a built-in interview flow was used.";
     }
   } else {
     warning =
-      "GEMINI_API_KEY is missing, so a built-in mock interview flow was used.";
+      "The AI API key is missing, so a built-in mock interview flow was used.";
   }
 
   const nowIso = new Date().toISOString();
@@ -299,16 +299,16 @@ export async function runMockInterviewAnswer({
         context,
       });
       result = normalizeAnswerPayload(aiResult, result);
-      provider = "Gemini";
+      provider = "AI";
       model = runtime.model;
     } catch (error) {
       warning =
         error?.message ||
-        "Gemini could not score the interview answer, so a built-in evaluator was used.";
+        "AI could not score the interview answer, so a built-in evaluator was used.";
     }
   } else {
     warning =
-      "GEMINI_API_KEY is missing, so a built-in mock-interview evaluator was used.";
+      "The AI API key is missing, so a built-in mock-interview evaluator was used.";
   }
 
   const answeredAtIso = new Date().toISOString();
@@ -426,7 +426,7 @@ function getGeminiRuntime() {
   return {
     aiEnabled: true,
     client: cachedGeminiClient,
-    provider: "Gemini",
+    provider: "AI",
     model,
   };
 }
@@ -1540,7 +1540,7 @@ function normalizeEvaluationCriteria(values) {
 function parseJsonResponse(rawText) {
   const normalized = String(rawText || "").trim();
   if (!normalized) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error("The AI service returned an empty response.");
   }
 
   try {
@@ -1554,7 +1554,7 @@ function parseJsonResponse(rawText) {
     if (objectMatch?.[0]) {
       return JSON.parse(objectMatch[0]);
     }
-    throw new Error("Gemini returned a non-JSON response.");
+    throw new Error("The AI service returned a non-JSON response.");
   }
 }
 

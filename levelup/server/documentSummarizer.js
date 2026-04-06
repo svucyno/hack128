@@ -60,16 +60,16 @@ export async function runDocumentSummarizer({
       });
 
       summary = normalizeDocumentSummary(geminiSummary, summary);
-      provider = "Gemini";
+      provider = "AI";
       model = engine.model;
     } catch (error) {
       warning =
         error?.message ||
-        "Gemini summarization was unavailable, so the built-in summarizer was used.";
+        "AI summarization was unavailable, so the built-in summarizer was used.";
     }
   } else {
     warning =
-      "GEMINI_API_KEY is missing, so the built-in summarizer was used for this document.";
+      "The AI API key is missing, so the built-in summarizer was used for this document.";
   }
 
   return {
@@ -106,7 +106,7 @@ function getGeminiRuntime() {
   return {
     aiEnabled: true,
     client: cachedGeminiClient,
-    provider: "Gemini",
+    provider: "AI",
     model,
   };
 }
@@ -210,7 +210,7 @@ function normalizeDocumentSummary(candidate, fallback) {
 function parseJsonResponse(rawText) {
   const normalized = String(rawText || "").trim();
   if (!normalized) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error("The AI service returned an empty response.");
   }
 
   try {
@@ -220,7 +220,7 @@ function parseJsonResponse(rawText) {
     if (fenced?.[1]) {
       return JSON.parse(fenced[1]);
     }
-    throw new Error("Gemini returned a non-JSON response.");
+    throw new Error("The AI service returned a non-JSON response.");
   }
 }
 

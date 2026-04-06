@@ -459,15 +459,15 @@ export default function ResumeAnalyzerPage() {
           }
 
           if (response?.warning) {
-            runtimeWarning = response.warning;
+            runtimeWarning = sanitizeAnalyzerWarning(response.warning);
           }
         } catch (serverError) {
-          console.error("Gemini resume analysis error:", serverError);
+          console.error("AI resume analysis error:", serverError);
           runtimeWarning = mergeWarnings(
             runtimeWarning,
             serverError instanceof Error
               ? `${serverError.message} Using ML and the built-in ATS engine for this run.`
-              : "Gemini enhancement was unavailable. Using ML and the built-in ATS engine for this run.",
+              : "AI enhancement was unavailable. Using ML and the built-in ATS engine for this run.",
           );
         }
       }
@@ -503,7 +503,7 @@ export default function ResumeAnalyzerPage() {
           report,
           context: nextContext,
           rawResumeText: parsed.text,
-          warning: runtimeWarning,
+          warning: sanitizeAnalyzerWarning(runtimeWarning),
         },
       });
     } catch (analysisError) {
@@ -829,6 +829,25 @@ function formatDateTime(value) {
 }
 
 function mergeWarnings(currentWarning, nextWarning) {
-  const messages = [currentWarning, nextWarning].filter(Boolean);
+  const messages = [currentWarning, nextWarning]
+    .map((value) => sanitizeAnalyzerWarning(value))
+    .filter(Boolean);
   return Array.from(new Set(messages)).join(" ");
+}
+
+function sanitizeAnalyzerWarning(value) {
+  const normalized = String(value || "")
+    .replace(/Request failed with status 404\.\s*/gi, "")
+    .replace(/Resume parsing fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(/ATS scoring fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(/Role prediction fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(/Skill-gap analysis fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(
+      /ML services are unavailable for (?:this run|the rest of this run), so Resume Analyzer is using the built-in engine\.?\s*/gi,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized;
 }

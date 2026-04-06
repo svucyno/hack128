@@ -299,13 +299,13 @@ export async function runResumeAnalyzer({
         fallback: baseReport,
         fileName: cleanedFileName,
         jobDescription: cleanedJobDescription,
-        provider: "Gemini",
+        provider: "AI",
         model: engine.model,
       });
     } catch (error) {
       warning =
         error?.message ||
-        "Gemini analysis was unavailable, so the analyzer used its built-in ATS logic only.";
+        "AI analysis was unavailable, so the analyzer used its built-in ATS logic only.";
     }
   }
 
@@ -359,7 +359,7 @@ export async function runResumeAnalyzerChat({
     const normalized = normalizeResumeChatReply(parsed, fallback);
 
     return {
-      provider: "Gemini",
+      provider: "AI",
       model: engine.model,
       ...normalized,
     };
@@ -367,7 +367,7 @@ export async function runResumeAnalyzerChat({
     return {
       warning:
         error?.message ||
-        "Gemini follow-up was unavailable, so the analyzer answered using local resume logic.",
+        "AI follow-up was unavailable, so the analyzer answered using local resume logic.",
       ...fallback,
     };
   }
@@ -399,7 +399,7 @@ function getGeminiRuntime() {
   return {
     aiEnabled: true,
     client: cachedGeminiClient,
-    provider: "Gemini",
+    provider: "AI",
     model,
   };
 }
@@ -618,7 +618,7 @@ function normalizeResumeAnalysisEnhancement(candidate, fallback) {
 
 function normalizeGeminiResumeReport(
   candidate,
-  { fallback, fileName, jobDescription, provider = "Gemini", model = "gemini" },
+  { fallback, fileName, jobDescription, provider = "AI", model = "cloud" },
 ) {
   const source = candidate && typeof candidate === "object" ? candidate : {};
   const fallbackReport = fallback && typeof fallback === "object" ? fallback : {};
@@ -974,7 +974,7 @@ function normalizeResumeChatReply(candidate, fallback) {
 function parseJsonResponse(rawText) {
   const normalized = String(rawText || "").trim();
   if (!normalized) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error("The AI service returned an empty response.");
   }
 
   try {
@@ -984,7 +984,7 @@ function parseJsonResponse(rawText) {
     if (fenced?.[1]) {
       return JSON.parse(fenced[1]);
     }
-    throw new Error("Gemini returned a non-JSON response.");
+    throw new Error("The AI service returned a non-JSON response.");
   }
 }
 

@@ -48,7 +48,7 @@ export default function ResumeAnalysisResultsPage() {
   const sourceContext = location.state?.context || storedLatestAnalysis?.context || null;
   const rawResumeText = location.state?.rawResumeText || storedLatestAnalysis?.rawResumeText || "";
 
-  const [warning, setWarning] = useState(location.state?.warning || "");
+  const [warning, setWarning] = useState(sanitizeAnalyzerWarning(location.state?.warning || ""));
   const [question, setQuestion] = useState("");
   const [questionLoading, setQuestionLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -90,7 +90,7 @@ export default function ResumeAnalysisResultsPage() {
       : FOLLOW_UP_PROMPTS;
 
   useEffect(() => {
-    setWarning(location.state?.warning || "");
+    setWarning(sanitizeAnalyzerWarning(location.state?.warning || ""));
   }, [location.state]);
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export default function ResumeAnalysisResultsPage() {
     const pendingMessage = {
       id: assistantId,
       role: "assistant",
-      title: "Gemini Resume Assistant",
+      title: "Resume Assistant",
       text: "Thinking through your ATS report, role fit, and next improvements...",
     };
 
@@ -135,7 +135,7 @@ export default function ResumeAnalysisResultsPage() {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("You must be signed in to use Gemini follow-up chat.");
+        throw new Error("You must be signed in to use the resume follow-up chat.");
       }
 
       const token = await currentUser.getIdToken();
@@ -158,26 +158,23 @@ export default function ResumeAnalysisResultsPage() {
       nextAssistantMessage = {
         id: assistantId,
         role: "assistant",
-        title:
-          response?.provider === "Gemini" ? "Gemini Resume Assistant" : "Resume Assistant",
+        title: "Resume Assistant",
         text: response?.answer || generateFollowUpResponse(prompt, analysis, sourceContext),
         bullets: response?.bullets || [],
-        footer: response?.warning
-          ? response.warning
-          : response?.provider === "Gemini"
-            ? `${response.provider} · ${response.model}`
-            : "",
+        footer: response?.warning ? response.warning : "",
       };
 
       if (response?.warning) {
-        setWarning(response.warning);
+        setWarning(sanitizeAnalyzerWarning(response.warning));
       }
     } catch (serverError) {
       console.error("Resume analyzer follow-up error:", serverError);
       setWarning(
-        serverError instanceof Error
-          ? `${serverError.message} Using the built-in resume assistant for this answer.`
-          : "Gemini follow-up was unavailable. Using the built-in resume assistant for this answer.",
+        sanitizeAnalyzerWarning(
+          serverError instanceof Error
+            ? `${serverError.message} Using the built-in resume assistant for this answer.`
+            : "AI follow-up was unavailable. Using the built-in resume assistant for this answer.",
+        ),
       );
       nextAssistantMessage = {
         ...nextAssistantMessage,
@@ -635,6 +632,21 @@ export default function ResumeAnalysisResultsPage() {
       </div>
     </div>
   );
+}
+
+function sanitizeAnalyzerWarning(value) {
+  return String(value || "")
+    .replace(/Request failed with status 404\.\s*/gi, "")
+    .replace(/Resume parsing fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(/ATS scoring fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(/Role prediction fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(/Skill-gap analysis fell back to the built-in analyzer\.?\s*/gi, "")
+    .replace(
+      /ML services are unavailable for (?:this run|the rest of this run), so Resume Analyzer is using the built-in engine\.?\s*/gi,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function ScoreRing({ score }) {

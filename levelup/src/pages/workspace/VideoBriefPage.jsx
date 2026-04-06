@@ -49,7 +49,7 @@ export default function VideoBriefPage() {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("Sign in to generate a video brief with Gemini.");
+        throw new Error("Sign in to generate a video brief with AI.");
       }
 
       try {
@@ -72,8 +72,8 @@ export default function VideoBriefPage() {
           sourceName: String(
             response?.summary?.sourceName || response?.metadata?.sourceName || "Video source",
           ).trim(),
-          provider: String(response?.provider || "Gemini").trim(),
-          model: String(response?.model || "gemini").trim(),
+          provider: "AI",
+          model: "Cloud",
         });
 
         if (response?.warning) {
@@ -91,13 +91,13 @@ export default function VideoBriefPage() {
 
         if (serverError?.status === 404) {
           setWarning(
-            "The Video Brief API route returned 404. Restart the backend in levelup/server to enable Gemini. A local fallback brief is shown for now.",
+            "The Video Brief API route returned 404. Restart the backend in levelup/server to enable AI summarization. A local fallback brief is shown for now.",
           );
         } else {
           setWarning(
             serverError instanceof Error
               ? `${serverError.message} Showing a local fallback brief for now.`
-              : "Gemini video summarization was unavailable. Showing a local fallback brief for now.",
+              : "AI video summarization was unavailable. Showing a local fallback brief for now.",
           );
         }
       }
@@ -115,9 +115,9 @@ export default function VideoBriefPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Gemini Video Brief"
+        eyebrow="AI Video Brief"
         title="Paste a video link and instantly generate a summary with key points."
-        description="Video Brief reads a public video URL, asks Gemini to summarize it, and returns revision-ready key points plus watch notes you can use before or after viewing."
+        description="Video Brief reads a public video URL, summarizes it, and returns revision-ready key points plus watch notes you can use before or after viewing."
       />
 
       <GlassCard className="overflow-hidden p-6 sm:p-8">
@@ -188,7 +188,7 @@ export default function VideoBriefPage() {
             </div>
             <div className="theme-text-muted mt-2 text-sm leading-7">
               {result
-                ? "Gemini has analyzed the linked video page and generated a summary, key points, and study notes."
+                ? "AI has analyzed the linked video page and generated a summary, key points, and study notes."
                 : "Paste a public video link and generate a structured brief before watching or while revising."}
             </div>
 
@@ -254,7 +254,7 @@ export default function VideoBriefPage() {
             </div>
             <div>
               <div className="theme-text-strong text-xl font-semibold">
-                Generating video brief with Gemini...
+                Generating video brief with AI...
               </div>
               <div className="theme-text-muted mt-2 text-sm">
                 Reading the linked video page, extracting context, and turning it into a concise learning brief.
@@ -374,13 +374,13 @@ function buildLocalVideoBrief(videoUrl) {
   return {
     title,
     summary: truncateText(
-      `This fallback brief is based on the link structure for ${title} from ${sourceName}. Restart the backend to enable Gemini-powered URL summarization for richer results.`,
+      `This fallback brief is based on the link structure for ${title} from ${sourceName}. Restart the backend to enable AI-powered URL summarization for richer results.`,
       560,
     ),
     keyPoints: [
       `Source platform: ${sourceName}`,
       `Linked topic hint: ${title}`,
-      "Use the source page directly if you need the complete context before Gemini is available.",
+      "Use the source page directly if you need the complete context before AI summarization is available.",
     ],
     studyNotes: [
       `Write the main concept covered in ${title}.`,

@@ -1,5 +1,6 @@
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
@@ -97,4 +98,9 @@ export async function signInStudentAccount(email, password) {
   ]);
 
   return credential.user;
+}
+
+export async function requestPasswordReset(email) {
+  const normalizedEmail = normalizeEmail(email);
+  await sendPasswordResetEmail(auth, normalizedEmail);
 }

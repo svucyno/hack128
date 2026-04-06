@@ -10,6 +10,13 @@ import {
 } from "./mockInterview";
 import { normalizeCompanyPrepPacks } from "./companyPrep";
 
+const DEFAULT_SETTINGS_PREFERENCES = {
+  aiMentorNotifications: true,
+  performanceRiskAlerts: true,
+  tutorRecommendations: true,
+  summarizerQuickActions: true,
+};
+
 function pruneUndefined(value) {
   if (Array.isArray(value)) {
     return value
@@ -174,6 +181,7 @@ export function buildUserRegistrationRecord({ fullName, email }) {
       lastLoginAt: null,
       lastLoginAtIso: "",
     },
+    preferences: DEFAULT_SETTINGS_PREFERENCES,
     workspaceState: buildInitialWorkspaceState(),
     resumeOverview: {
       status: "idle",
@@ -232,6 +240,57 @@ export async function saveMockInterviewState(uid, payload) {
     updatedAt: serverTimestamp(),
     updatedAtIso: new Date().toISOString(),
   });
+}
+
+export function normalizeSettingsPreferences(preferences = {}) {
+  return {
+    aiMentorNotifications:
+      preferences?.aiMentorNotifications !== false,
+    performanceRiskAlerts:
+      preferences?.performanceRiskAlerts !== false,
+    tutorRecommendations:
+      preferences?.tutorRecommendations !== false,
+    summarizerQuickActions:
+      preferences?.summarizerQuickActions !== false,
+  };
+}
+
+export async function saveUserSettings(uid, payload = {}) {
+  if (!uid) {
+    return;
+  }
+
+  const safeName = String(payload?.name || "").trim();
+  const safeEmail = String(payload?.email || "").trim().toLowerCase();
+  const targetRole = String(payload?.targetRole || "").trim();
+  const nowIso = new Date().toISOString();
+  const preferences = normalizeSettingsPreferences(payload?.preferences);
+
+  await update(ref(db, `users/${uid}`), pruneUndefined({
+    name: safeName || undefined,
+    email: safeEmail || undefined,
+    avatar: safeName ? safeName.charAt(0).toUpperCase() : undefined,
+    college: String(payload?.college || "").trim(),
+    department: String(payload?.department || "").trim(),
+    year: String(payload?.year || "").trim(),
+    phone: String(payload?.phone || "").trim(),
+    city: String(payload?.city || "").trim(),
+    updatedAt: serverTimestamp(),
+    updatedAtIso: nowIso,
+    "preferences/aiMentorNotifications": preferences.aiMentorNotifications,
+    "preferences/performanceRiskAlerts": preferences.performanceRiskAlerts,
+    "preferences/tutorRecommendations": preferences.tutorRecommendations,
+    "preferences/summarizerQuickActions": preferences.summarizerQuickActions,
+    "account/name": safeName || undefined,
+    "account/email": safeEmail || undefined,
+    "activity/lastAction": "updated_settings",
+    "careerGuidance/latestTargetRole": targetRole,
+    "careerGuidance/updatedAt": serverTimestamp(),
+    "careerGuidance/updatedAtIso": nowIso,
+    "adaptiveLearning/targetRole": targetRole,
+    "adaptiveLearning/updatedAt": serverTimestamp(),
+    "adaptiveLearning/updatedAtIso": nowIso,
+  }));
 }
 
 function normalizeCalendarTasks(tasks = []) {

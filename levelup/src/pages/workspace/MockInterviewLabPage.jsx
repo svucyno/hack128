@@ -442,7 +442,7 @@ export default function MockInterviewLabPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Gemini Mock Interview Lab"
+        eyebrow="AI Mock Interview Lab"
         title="Run full mock interview cycles with role-based questions, weighted scoring, and saved improvement signals."
         description="Mock Interview Lab now links your target role, latest resume version, ATS score, and skill-gap context into each session. Every answer gets a weighted breakdown, model answer guidance, deeper follow-up probes, and a final summary that feeds Performance."
         aside={

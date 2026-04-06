@@ -521,7 +521,7 @@ export default function CareerGuidancePage() {
             : "grid-cols-1"
         }`}
       >
-        <section className="flex min-h-0 flex-col bg-transparent">
+        <section className="relative flex min-h-0 flex-col bg-transparent">
           <ChatTopBar
             currentTargetRole={currentTargetRole}
             activeChatTitle={activeChatTitle}
@@ -536,7 +536,7 @@ export default function CareerGuidancePage() {
           />
 
           {hasStatusBanners ? (
-            <div className="space-y-2 border-b border-white/10 bg-white/[0.03] px-4 py-2.5 backdrop-blur-xl sm:px-6">
+            <div className="space-y-1.5 border-b border-white/10 bg-white/[0.03] px-4 py-1.5 backdrop-blur-xl sm:px-6">
               {!profileReady ? (
                 <GuidanceBanner>
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -571,7 +571,7 @@ export default function CareerGuidancePage() {
             ref={chatScrollRef}
             onScroll={syncChatScrollState}
             className={`relative min-h-0 flex-1 overflow-y-auto px-4 sm:px-6 ${
-              hasActiveMessages ? "py-3 sm:py-4" : "py-5"
+              hasActiveMessages ? "py-2 sm:py-2.5 pb-[10.5rem] sm:pb-[11.5rem]" : "py-5"
             }`}
           >
             <div className={`flex w-full flex-col ${hasActiveMessages ? "gap-5" : "gap-6"}`}>
@@ -613,6 +613,7 @@ export default function CareerGuidancePage() {
           <ChatInputBar
             draft={draft}
             hasActiveMessages={hasActiveMessages}
+            floating={hasActiveMessages}
             mode={currentMode.value}
             sending={sending}
             error={error}
@@ -847,7 +848,7 @@ function ChatTopBar({
   return (
     <div
       className={`border-b border-white/10 bg-white/[0.03] backdrop-blur-xl sm:px-5 ${
-        hasActiveMessages ? "px-4 py-2.5" : "px-4 py-4"
+        hasActiveMessages ? "px-4 py-1.5" : "px-4 py-4"
       }`}
     >
       <div className="flex w-full flex-wrap items-center justify-between gap-3">
@@ -857,7 +858,7 @@ function ChatTopBar({
               type="button"
               onClick={onOpenSidebar}
               className={`rounded-2xl border border-white/10 bg-white/[0.04] text-white/72 transition hover:border-white/20 hover:bg-white/10 hover:text-white ${
-                hasActiveMessages ? "p-2.5" : "p-3"
+                hasActiveMessages ? "p-2" : "p-3"
               }`}
             >
               <Menu className="h-4 w-4" />
@@ -866,7 +867,7 @@ function ChatTopBar({
               type="button"
               onClick={onOpenContext}
               className={`rounded-2xl border border-white/10 bg-white/[0.04] text-white/72 transition hover:border-white/20 hover:bg-white/10 hover:text-white ${
-                hasActiveMessages ? "p-2.5" : "p-3"
+                hasActiveMessages ? "p-2" : "p-3"
               }`}
             >
               <Compass className="h-4 w-4" />
@@ -877,7 +878,7 @@ function ChatTopBar({
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/35">
               Career Guidance
             </div>
-            <div className={`font-black tracking-tight text-white ${hasActiveMessages ? "mt-0.5 text-[1.35rem]" : "mt-1 text-[1.65rem]"}`}>
+            <div className={`font-black tracking-tight text-white ${hasActiveMessages ? "mt-0 text-[1.2rem]" : "mt-1 text-[1.65rem]"}`}>
               Career Coach
             </div>
             {!hasActiveMessages ? (
@@ -901,7 +902,7 @@ function ChatTopBar({
               type="button"
               onClick={onOpenPreviousChats}
               className={`inline-flex items-center gap-2 rounded-[16px] border border-white/10 bg-white/[0.05] text-sm font-medium text-white/82 transition hover:border-indigo-400/25 hover:bg-indigo-500/10 hover:text-white ${
-                hasActiveMessages ? "px-3.5 py-2" : "px-4 py-2.5"
+                hasActiveMessages ? "px-3 py-1.5" : "px-4 py-2.5"
               }`}
             >
               <History className="h-4 w-4" />
@@ -916,7 +917,7 @@ function ChatTopBar({
             type="button"
             onClick={onNewChat}
             className={`inline-flex items-center gap-2 rounded-[16px] border border-indigo-400/25 bg-[linear-gradient(135deg,rgba(99,102,241,0.24),rgba(129,140,248,0.14))] text-sm font-medium text-indigo-50 transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(79,70,229,0.2)] ${
-              hasActiveMessages ? "px-3.5 py-2" : "px-4 py-2.5"
+                hasActiveMessages ? "px-3 py-1.5" : "px-4 py-2.5"
             }`}
           >
             <MessageSquarePlus className="h-4 w-4" />
@@ -1637,6 +1638,7 @@ function TagPill({ children, tone = "neutral" }) {
 function ChatInputBar({
   draft,
   hasActiveMessages,
+  floating = false,
   mode,
   sending,
   error,
@@ -1669,20 +1671,34 @@ function ChatInputBar({
 
   return (
     <div
-      className={`border-t border-white/10 bg-white/[0.03] px-4 backdrop-blur-xl sm:px-6 ${
-        hasActiveMessages ? "py-2" : "py-3"
-      }`}
+      className={
+        floating
+          ? "absolute inset-x-4 bottom-3 z-20 sm:inset-x-6"
+          : `border-t border-white/10 bg-white/[0.03] px-4 backdrop-blur-xl sm:px-6 ${
+              hasActiveMessages ? "py-2" : "py-3"
+            }`
+      }
     >
-      <div className="w-full">
+      <div
+        className={`w-full ${
+          floating
+            ? "rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,28,0.92),rgba(9,12,24,0.9))] px-3 py-2 shadow-[0_22px_65px_rgba(4,8,24,0.4)] backdrop-blur-2xl"
+            : ""
+        }`}
+      >
         <form onSubmit={onSubmit}>
           <div
-            className={`rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,28,0.95),rgba(9,12,24,0.9))] shadow-[0_20px_60px_rgba(4,8,24,0.24)] backdrop-blur-2xl ${
-              hasActiveMessages ? "p-2.5" : "p-3"
+            className={`rounded-[26px] ${
+              floating
+                ? "bg-transparent shadow-none backdrop-blur-0"
+                : "border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,28,0.95),rgba(9,12,24,0.9))] shadow-[0_20px_60px_rgba(4,8,24,0.24)] backdrop-blur-2xl"
+            } ${hasActiveMessages ? "p-2" : "p-3"} ${
+              floating ? "border-0" : ""
             }`}
           >
             <div
               className={`flex flex-wrap items-center gap-2 px-1 ${
-                hasActiveMessages ? "mb-1.5 pb-1.5" : "mb-2 pb-2"
+                hasActiveMessages ? "mb-1 pb-1" : "mb-2 pb-2"
               }`}
             >
               <button
@@ -1734,13 +1750,13 @@ function ChatInputBar({
               rows={1}
               placeholder={getInputPlaceholder(mode)}
               className={`w-full resize-none overflow-y-auto bg-transparent px-2 text-[16px] text-white outline-none placeholder:text-white/32 sm:text-[17px] ${
-                hasActiveMessages ? "min-h-[52px] max-h-[150px] py-1.5 leading-7" : "min-h-[72px] max-h-[220px] py-2 leading-8"
+                hasActiveMessages ? "min-h-[40px] max-h-[96px] py-1 leading-7" : "min-h-[72px] max-h-[220px] py-2 leading-8"
               }`}
             />
 
             <div
               className={`flex flex-wrap items-center justify-end gap-3 border-t border-white/10 px-2 ${
-                hasActiveMessages ? "mt-1.5 pt-1.5" : "mt-2 pt-2"
+                hasActiveMessages ? "mt-1 pt-1" : "mt-2 pt-2"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -1751,7 +1767,7 @@ function ChatInputBar({
                   type="submit"
                   disabled={sending || !draft.trim()}
                   className={`inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6366f1,#818cf8)] text-white shadow-[0_16px_34px_rgba(99,102,241,0.32)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    hasActiveMessages ? "h-10 w-10" : "h-11 w-11"
+                    hasActiveMessages ? "h-9 w-9" : "h-11 w-11"
                   }`}
                 >
                   {sending ? (
@@ -2002,38 +2018,68 @@ function buildAnswerLines(text) {
     return [];
   }
 
-  const paragraphs = trimmed
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
+  const blocks = trimmed
+    .split(/\n+/)
+    .map((block) => block.trim())
     .filter(Boolean);
 
   const lines = [];
-  paragraphs.forEach((paragraph) => {
-    const sentences = paragraph
-      .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean);
+  blocks.forEach((block) => {
+    const normalizedBlock = block
+      .replace(/\s*([•▪◦])\s*/g, "\n$1 ")
+      .replace(/\s+(-\s+)/g, "\n$1")
+      .replace(/\s+(\d+\.\s+)/g, "\n$1");
 
-    if (sentences.length <= 1) {
-      lines.push(paragraph);
+    const segments = normalizedBlock
+      .split(/\n+/)
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+      .flatMap((segment) =>
+        segment
+          .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+          .map((part) => part.trim())
+          .filter(Boolean),
+      );
+
+    if (!segments.length) {
       return;
     }
 
-    let currentLine = "";
-    sentences.forEach((sentence) => {
-      const candidate = currentLine ? `${currentLine} ${sentence}` : sentence;
-      if (candidate.length > 170 && currentLine) {
-        lines.push(currentLine);
-        currentLine = sentence;
-      } else {
-        currentLine = candidate;
-      }
+    segments.forEach((segment) => {
+      wrapAnswerSegment(segment, 88).forEach((line) => lines.push(line));
     });
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
   });
+
+  return lines;
+}
+
+function wrapAnswerSegment(segment, maxLength = 88) {
+  const safeSegment = String(segment || "").trim();
+  if (!safeSegment) {
+    return [];
+  }
+
+  const words = safeSegment.split(/\s+/).filter(Boolean);
+  if (!words.length) {
+    return [];
+  }
+
+  const lines = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length > maxLength && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+      return;
+    }
+    currentLine = candidate;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
 
   return lines;
 }

@@ -77,7 +77,7 @@ export const dashboardModules = [
   { title: "Recommended Jobs", subtitle: "Feed-style openings ranked for target roles and adjacent fits", to: "/workspace/recommended-jobs", metric: "Ranked" },
   { title: "Job Applications", subtitle: "Track companies, interview rounds, deadlines, and resume versions", to: "/workspace/job-applications", metric: "Pipeline" },
   { title: "Company Prep", subtitle: "Generate company-specific rounds, topics, checklists, and mock modes", to: "/workspace/company-prep", metric: "Prep pack" },
-  { title: "Mock Interview", subtitle: "Gemini-powered HR, technical, and domain interview practice", to: "/workspace/mock-interview", metric: "Scored" },
+  { title: "Mock Interview", subtitle: "AI-powered HR, technical, and domain interview practice", to: "/workspace/mock-interview", metric: "Scored" },
   { title: "Skill Gap", subtitle: "Missing skills analysis for target roles", to: "/workspace/skill-gap-analysis", metric: "8 gaps" },
   { title: "Adaptive Learning", subtitle: "Personalized learning roadmap for different speeds", to: "/workspace/adaptive-learning", metric: "9 weeks" },
   { title: "Resume Parser", subtitle: "Extract skills, education, projects, and experience", to: "/workspace/resume-parser", metric: "94%" },

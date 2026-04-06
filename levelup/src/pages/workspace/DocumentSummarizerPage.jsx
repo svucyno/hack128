@@ -79,7 +79,7 @@ export default function DocumentSummarizerPage() {
 
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("Sign in to summarize documents with Gemini.");
+        throw new Error("Sign in to summarize documents with AI.");
       }
 
       try {
@@ -98,8 +98,8 @@ export default function DocumentSummarizerPage() {
           fileName: parsedInput.fileName,
           previewText: parsedInput.previewText,
           wordCount: countWords(parsedInput.text),
-          provider: String(response?.provider || "Gemini").trim(),
-          model: String(response?.model || "gemini").trim(),
+          provider: "AI",
+          model: "Cloud",
         });
 
         if (response?.warning) {
@@ -122,13 +122,13 @@ export default function DocumentSummarizerPage() {
 
         if (serverError?.status === 404) {
           setWarning(
-            "The document summarizer API route returned 404. Restart the backend in levelup/server to enable Gemini. A local fallback summary is shown for now.",
+            "The document summarizer API route returned 404. Restart the backend in levelup/server to enable AI summarization. A local fallback summary is shown for now.",
           );
         } else {
           setWarning(
             serverError instanceof Error
               ? `${serverError.message} Showing a local fallback summary for now.`
-              : "Gemini summarization was unavailable. Showing a local fallback summary for now.",
+              : "AI summarization was unavailable. Showing a local fallback summary for now.",
           );
         }
       }
@@ -146,9 +146,9 @@ export default function DocumentSummarizerPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Gemini Document Summarizer"
+        eyebrow="AI Document Summarizer"
         title="Upload a PDF and turn it into a short summary with key points."
-        description="Extract text from PDF, DOC, or DOCX files and send it to Gemini for a concise summary, revision-ready key points, and topic highlights."
+        description="Extract text from PDF, DOC, or DOCX files and generate a concise summary, revision-ready key points, and topic highlights."
       />
 
       <GlassCard className="overflow-hidden p-6 sm:p-8">
@@ -231,7 +231,7 @@ export default function DocumentSummarizerPage() {
                   }}
                 />
                 <div className="theme-text-muted mt-3 text-xs">
-                  Paste enough text for Gemini to produce a meaningful summary and key points.
+                  Paste enough text to produce a meaningful summary and key points.
                 </div>
               </div>
             )}
@@ -257,7 +257,7 @@ export default function DocumentSummarizerPage() {
               {loading ? (
                 <>
                   <LoaderCircle className="h-4 w-4 animate-spin" />
-                  Summarizing with Gemini
+                  Summarizing with AI
                 </>
               ) : (
                 <>
@@ -277,8 +277,8 @@ export default function DocumentSummarizerPage() {
             </div>
             <div className="theme-text-muted mt-2 text-sm leading-7">
               {result
-                ? "Gemini has summarized the extracted text. Review the short summary, key points, and topics below."
-                : "Upload a PDF or paste text, then run Gemini summarization to generate a concise summary and revision-ready key points."}
+                ? "AI has summarized the extracted text. Review the short summary, key points, and topics below."
+                : "Upload a PDF or paste text, then run summarization to generate a concise summary and revision-ready key points."}
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -331,7 +331,7 @@ export default function DocumentSummarizerPage() {
             </div>
             <div>
               <div className="theme-text-strong text-xl font-semibold">
-                Summarizing document with Gemini...
+                Summarizing document with AI...
               </div>
               <div className="theme-text-muted mt-2 text-sm">
                 Extracting the main ideas, compressing the content, and producing revision-ready key points.
@@ -394,7 +394,7 @@ export default function DocumentSummarizerPage() {
               <div>
                 <div className="theme-text-strong text-lg font-semibold">Extracted Preview</div>
                 <div className="theme-text-muted text-sm">
-                  First 600 characters of the text sent to Gemini
+                  First 600 characters of the text sent to the AI service
                 </div>
               </div>
             </div>

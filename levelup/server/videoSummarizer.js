@@ -61,16 +61,16 @@ export async function runVideoSummarizer({ videoUrl }) {
       });
 
       summary = normalizeVideoSummary(geminiSummary, summary);
-      provider = "Gemini";
+      provider = "AI";
       model = runtime.model;
     } catch (error) {
       warning =
         error?.message ||
-        "Gemini could not summarize the video link, so a metadata-based fallback summary was used.";
+        "AI summarization could not process the video link, so a metadata-based fallback summary was used.";
     }
   } else {
     warning =
-      "GEMINI_API_KEY is missing, so a metadata-based fallback summary was used for this video link.";
+      "The AI API key is missing, so a metadata-based fallback summary was used for this video link.";
   }
 
   return {
@@ -108,7 +108,7 @@ function getGeminiRuntime() {
   return {
     aiEnabled: true,
     client: cachedGeminiClient,
-    provider: "Gemini",
+    provider: "AI",
     model,
   };
 }
@@ -413,7 +413,7 @@ function extractTagText(html, tagName) {
 function parseJsonResponse(rawText) {
   const normalized = String(rawText || "").trim();
   if (!normalized) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error("The AI service returned an empty response.");
   }
 
   try {
@@ -427,7 +427,7 @@ function parseJsonResponse(rawText) {
     if (objectMatch?.[0]) {
       return JSON.parse(objectMatch[0]);
     }
-    throw new Error("Gemini returned a non-JSON response.");
+    throw new Error("The AI service returned a non-JSON response.");
   }
 }
 

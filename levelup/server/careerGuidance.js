@@ -245,7 +245,7 @@ export async function runCareerGuidanceChat({
     } catch (error) {
       warning =
         error?.message ||
-        "Gemini could not complete this request. Built-in guidance was used instead.";
+        "AI guidance could not complete this request. Built-in guidance was used instead.";
     }
   }
 
@@ -310,7 +310,7 @@ function getGeminiRuntime() {
   return {
     aiEnabled: true,
     client: cachedGeminiClient,
-    provider: "Gemini",
+    provider: "AI",
     model,
   };
 }
@@ -1374,7 +1374,7 @@ async function generateGeminiGuidance({ client, model, context, history, message
   });
 
   return {
-    provider: "Gemini",
+    provider: "AI",
     model,
     ...parseGeminiResponse(response?.text),
   };
@@ -1406,7 +1406,7 @@ function buildGeminiContents({ context, history, message }) {
 function buildSystemInstruction(context) {
   return [
     "You are LevelUp Advanced AI Career Intelligence System.",
-    "Behave like a high-quality Gemini-style assistant for students, internships, placements, higher learning, and career growth.",
+    "Behave like a high-quality AI assistant for students, internships, placements, higher learning, and career growth.",
     "Use the student context below as the source of truth for personalization.",
     "Your internal modules are: Resume Parser, ATS Scoring Engine, Resume Quality Analysis, Skill Gap Analyzer, Career Recommendation Engine, Learning Roadmap Generator, Student Performance Prediction, Adaptive Learning System, Document Summarizer, and Collaborative Learning + Tutor System.",
     "For casual messages like hi, hello, thanks, or help, reply naturally first and keep the structured sections mostly empty instead of forcing a full report.",
@@ -1438,7 +1438,7 @@ function buildSystemInstruction(context) {
 function parseGeminiResponse(rawText) {
   const normalized = String(rawText || "").trim();
   if (!normalized) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error("The AI service returned an empty response.");
   }
 
   try {
@@ -1448,7 +1448,7 @@ function parseGeminiResponse(rawText) {
     if (fenced?.[1]) {
       return JSON.parse(fenced[1]);
     }
-    throw new Error("Gemini returned a non-JSON response.");
+    throw new Error("The AI service returned a non-JSON response.");
   }
 }
 
