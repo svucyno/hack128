@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleAlert,
+  Eye,
   FileText,
   GraduationCap,
   KeyRound,
@@ -83,6 +84,10 @@ export default function ResumeAnalysisResultsPage() {
   const careerSuggestions = useMemo(
     () => buildCareerSuggestions(roleMatches, analysis?.careerRecommendations),
     [analysis?.careerRecommendations, roleMatches],
+  );
+  const recruiterLens = useMemo(
+    () => buildRecruiterLens(analysis, bestRole, qualityChecks, keywordDetails),
+    [analysis, bestRole, qualityChecks, keywordDetails],
   );
   const followUpPrompts =
     analysis?.aiInsights?.suggestedQuestions?.length
@@ -377,6 +382,50 @@ export default function ResumeAnalysisResultsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="resume-card resume-fade-up mt-6 p-6 md:p-8">
+          <SectionHeading icon={Eye} title="Recruiter Lens" />
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="resume-card-soft p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`resume-tone-badge resume-tone-badge--${recruiterLens.tone}`}>
+                  {recruiterLens.decision}
+                </span>
+                <span className="text-xs uppercase tracking-[0.18em]" style={{ color: "var(--resume-text-muted)" }}>
+                  Recruiter first read
+                </span>
+              </div>
+              <div className="mt-4 text-base font-semibold" style={{ color: "var(--resume-text)" }}>
+                {recruiterLens.headline}
+              </div>
+              <div className="mt-3 text-sm leading-7" style={{ color: "var(--resume-text-muted)" }}>
+                {recruiterLens.summary}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <RecruiterListCard
+                title="Strongest Signals"
+                tone="success"
+                items={recruiterLens.strongSignals}
+                emptyLabel="No standout strengths yet."
+              />
+              <RecruiterListCard
+                title="Rejection Triggers"
+                tone="danger"
+                items={recruiterLens.rejectionTriggers}
+                emptyLabel="No major ATS blockers detected."
+              />
+              <RecruiterListCard
+                title="Fastest Fixes"
+                tone="primary"
+                items={recruiterLens.fastFixes}
+                emptyLabel="Keep polishing role-specific evidence."
+              />
+            </div>
           </div>
         </div>
 
@@ -920,6 +969,37 @@ function MetaChip({ label, value }) {
   );
 }
 
+function RecruiterListCard({ title, tone = "primary", items = [], emptyLabel = "" }) {
+  const iconColor =
+    tone === "danger"
+      ? "var(--resume-danger)"
+      : tone === "success"
+        ? "var(--resume-success)"
+        : "var(--resume-primary)";
+
+  return (
+    <div className="resume-card-soft p-4">
+      <div className="text-sm font-semibold" style={{ color: "var(--resume-text)" }}>
+        {title}
+      </div>
+      <div className="mt-4 space-y-3">
+        {items.length ? (
+          items.map((item) => (
+            <div key={item} className="flex items-start gap-3 text-sm leading-7">
+              <span className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ background: iconColor }} />
+              <span style={{ color: "var(--resume-text-muted)" }}>{item}</span>
+            </div>
+          ))
+        ) : (
+          <div className="text-sm leading-7" style={{ color: "var(--resume-text-muted)" }}>
+            {emptyLabel}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function buildKeywordDetails(analysis) {
   if (!analysis) {
     return { found: [], missing: [] };
@@ -1087,6 +1167,89 @@ function buildRoadmap(analysis, bestRole) {
       ? item.items
       : ["Keep iterating on resume quality and targeted role skills."],
   }));
+}
+
+function buildRecruiterLens(analysis, bestRole, qualityChecks, keywordDetails) {
+  if (!analysis) {
+    return {
+      decision: "Needs review",
+      tone: "warning",
+      headline: "There is not enough analysis data yet.",
+      summary: "Run a resume analysis first to see recruiter-style feedback.",
+      strongSignals: [],
+      rejectionTriggers: [],
+      fastFixes: [],
+    };
+  }
+
+  const failedChecks = (qualityChecks || [])
+    .filter((item) => !item.pass)
+    .map((item) => item.label);
+
+  const strongSignals = uniqueStrings([
+    ...(analysis.strengths || []),
+    ...(bestRole?.matchedSkills || []).slice(0, 3).map((item) => `Matched skill: ${item}`),
+    ...(keywordDetails?.found || []).slice(0, 2).map((item) => `Keyword hit: ${item}`),
+  ]).slice(0, 4);
+
+  const rejectionTriggers = uniqueStrings([
+    ...(failedChecks.includes("Contact information")
+      ? ["Missing clear contact details can block recruiter follow-up."]
+      : []),
+    ...(failedChecks.includes("Bullet points used")
+      ? ["Dense paragraphs make the resume harder to scan quickly."]
+      : []),
+    ...(failedChecks.includes("Quantified achievements")
+      ? ["Lack of metrics weakens credibility and impact."]
+      : []),
+    ...(analysis.atsScore < 60
+      ? ["Low ATS score suggests weak keyword alignment for screening."]
+      : []),
+    ...((keywordDetails?.missing || []).slice(0, 2).map(
+      (item) => `Missing keyword: ${item}`,
+    )),
+    ...((bestRole?.missingSkills || analysis.missingSkills || []).slice(0, 2).map(
+      (item) => `Missing proof for ${item}`,
+    )),
+  ]).slice(0, 4);
+
+  const fastFixes = uniqueStrings([
+    ...(analysis.suggestions || []),
+    ...(analysis.howToReachNinety || []),
+    ...(analysis.aiInsights?.priorityActions || []),
+  ]).slice(0, 4);
+
+  let decision = "Needs one more pass";
+  let tone = "warning";
+
+  if (analysis.atsScore >= 80 && rejectionTriggers.length <= 1) {
+    decision = "Shortlist ready";
+    tone = "success";
+  } else if (analysis.atsScore < 60 || rejectionTriggers.length >= 3) {
+    decision = "High rejection risk";
+    tone = "danger";
+  }
+
+  const headline =
+    decision === "Shortlist ready"
+      ? "A recruiter should quickly understand your fit and see enough relevance to move forward."
+      : decision === "High rejection risk"
+        ? "A recruiter may reject this resume early unless the gaps below are fixed."
+        : "A recruiter will see promise here, but the resume still needs tighter role alignment.";
+
+  const summary = bestRole
+    ? `${bestRole.role} is the clearest role signal right now at ${bestRole.match}%. The next improvement pass should focus on stronger evidence, keyword coverage, and recruiter scannability.`
+    : "The resume has partial signal, but it needs stronger structure and role-specific evidence before it will feel convincing in a quick recruiter screen.";
+
+  return {
+    decision,
+    tone,
+    headline,
+    summary,
+    strongSignals,
+    rejectionTriggers,
+    fastFixes,
+  };
 }
 
 function buildAnalysisConversation(analysis, context) {
