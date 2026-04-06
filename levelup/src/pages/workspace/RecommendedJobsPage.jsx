@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Bot,
   Briefcase,
+  CheckCircle2,
   Building2,
   CalendarDays,
   Clock3,
@@ -17,6 +18,7 @@ import MlStatusNotice from "../../components/workspace/MlStatusNotice";
 import PageHeader from "../../components/workspace/PageHeader";
 import { useMlServiceStatus } from "../../hooks/useMlServiceStatus";
 import { useWorkspaceStore } from "../../hooks/useWorkspaceStore";
+import { runApplicationAutopilot } from "../../lib/applicationAutopilot";
 import {
   buildRecommendedJobs,
   buildTrackerApplicationFromJob,
@@ -54,8 +56,12 @@ export default function RecommendedJobsPage() {
   const navigate = useNavigate();
   const profile = useWorkspaceStore((state) => state.profile);
   const profileReady = useWorkspaceStore((state) => state.profileReady);
+  const calendarTasks = useWorkspaceStore((state) => state.calendarTasks);
+  const setCalendarTasks = useWorkspaceStore((state) => state.setCalendarTasks);
   const jobApplications = useWorkspaceStore((state) => state.jobApplications);
   const setJobApplications = useWorkspaceStore((state) => state.setJobApplications);
+  const companyPrepPacks = useWorkspaceStore((state) => state.companyPrepPacks);
+  const setCompanyPrepPacks = useWorkspaceStore((state) => state.setCompanyPrepPacks);
 
   const guidance = profile?.careerGuidance || {};
   const resumeOverview = profile?.resumeOverview || {};
@@ -131,7 +137,19 @@ export default function RecommendedJobsPage() {
   const [notice, setNotice] = useState("");
   const [mlRecommendations, setMlRecommendations] = useState(null);
   const [mlWarning, setMlWarning] = useState("");
+  const [autopilotSummary, setAutopilotSummary] = useState(null);
   const mlStatus = useMlServiceStatus();
+  const recommendedRoles = useMemo(
+    () =>
+      uniqueStrings([
+        latestTargetRole,
+        ...(guidance.latestRecommendedRoles || []).map((item) => item?.role),
+        ...suggestedRoles,
+      ]).map((role) => ({
+        role,
+      })),
+    [guidance.latestRecommendedRoles, latestTargetRole, suggestedRoles],
+  );
 
   useEffect(() => {
     setFilters((current) => {
@@ -291,6 +309,28 @@ export default function RecommendedJobsPage() {
         },
       },
     });
+  };
+
+  const handleStartAutopilot = (job) => {
+    const result = runApplicationAutopilot({
+      job,
+      jobApplications: applications,
+      companyPrepPacks,
+      calendarTasks,
+      linkedResumeVersion: latestResumeVersion,
+      linkedResumeScore: latestResumeScore,
+      targetRole: filters.role || latestTargetRole,
+      resumeSkillGaps: skillGaps,
+      recommendedRoles,
+    });
+
+    setJobApplications(result.nextApplications);
+    setCompanyPrepPacks(result.nextPrepPacks);
+    setCalendarTasks(result.nextCalendarTasks);
+    setAutopilotSummary(result.summary);
+    setNotice(
+      `Application Autopilot ${result.summary.trackerAction} ${job.company} · ${job.role}. Tracker, prep, and tasks are ready.`,
+    );
   };
 
   const handleStartMockInterview = (job) => {
@@ -537,12 +577,162 @@ export default function RecommendedJobsPage() {
             ) : null}
           </GlassCard>
 
+          {autopilotSummary ? (
+            <GlassCard className="p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="theme-text-strong inline-flex items-center gap-2 text-xl font-black">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                    Application Autopilot Ready
+                  </div>
+                  <div className="theme-text-muted mt-2 text-sm leading-7">
+                    {autopilotSummary.company} · {autopilotSummary.role} is now synced into the
+                    tracker with a prep pack and generated calendar tasks.
+                  </div>
+                </div>
+                <div
+                  className="rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em]"
+                  style={{
+                    borderColor:
+                      autopilotSummary.trackerAction === "updated"
+                        ? "rgba(56,189,248,0.26)"
+                        : "rgba(34,197,94,0.26)",
+                    background:
+                      autopilotSummary.trackerAction === "updated"
+                        ? "rgba(56,189,248,0.12)"
+                        : "rgba(34,197,94,0.12)",
+                    color: "var(--theme-text-strong)",
+                  }}
+                >
+                  {autopilotSummary.trackerAction === "updated"
+                    ? "Existing entry refreshed"
+                    : "New tracker entry created"}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <ContextRow
+                  label="Job match"
+                  value={
+                    autopilotSummary.matchScore != null
+                      ? `${autopilotSummary.matchScore}% fit`
+                      : "Tracked"
+                  }
+                />
+                <ContextRow
+                  label="Tracker status"
+                  value={formatStatusLabel(autopilotSummary.status)}
+                />
+                <ContextRow
+                  label="Prep pack"
+                  value="Ready"
+                />
+                <ContextRow
+                  label="Tasks created"
+                  value={`${autopilotSummary.tasksCreated} tasks`}
+                />
+              </div>
+
+              <div
+                className="mt-5 rounded-[24px] border p-4"
+                style={{
+                  borderColor: "var(--theme-border)",
+                  background: "var(--theme-surface-0)",
+                }}
+              >
+                <div className="theme-text-strong text-sm font-bold">Next best action</div>
+                <div className="theme-text-muted mt-2 text-sm leading-7">
+                  {autopilotSummary.nextAction}
+                </div>
+                {autopilotSummary.linkedResumeVersion ? (
+                  <div className="theme-text-muted mt-3 text-xs uppercase tracking-[0.2em]">
+                    Linked resume: {autopilotSummary.linkedResumeVersion}
+                  </div>
+                ) : null}
+              </div>
+
+              {autopilotSummary.missingSkills.length ? (
+                <div className="mt-5">
+                  <div className="theme-text-muted text-xs font-semibold uppercase tracking-[0.22em]">
+                    Priority gaps before applying
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {autopilotSummary.missingSkills.map((skill) => (
+                      <span
+                        key={`autopilot-gap-${skill}`}
+                        className="rounded-full border px-3 py-2 text-xs font-semibold"
+                        style={{
+                          borderColor: "rgba(250,204,21,0.24)",
+                          background: "rgba(250,204,21,0.12)",
+                          color: "var(--theme-text-strong)",
+                        }}
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/workspace/job-applications")}
+                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
+                  style={{
+                    borderColor: "rgba(239,68,68,0.24)",
+                    background: "rgba(239,68,68,0.1)",
+                    color: "var(--theme-text-strong)",
+                  }}
+                >
+                  <Briefcase className="h-4 w-4" />
+                  Open Tracker
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/workspace/company-prep", {
+                      state: { packId: autopilotSummary.prepPackId },
+                    })
+                  }
+                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
+                  style={{
+                    borderColor: "var(--theme-border)",
+                    background: "var(--theme-surface-0)",
+                    color: "var(--theme-text-strong)",
+                  }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Open Prep Pack
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/workspace/mock-interview", {
+                      state: autopilotSummary.mockInterviewState,
+                    })
+                  }
+                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
+                  style={{
+                    borderColor: "var(--theme-border)",
+                    background: "var(--theme-surface-0)",
+                    color: "var(--theme-text-strong)",
+                  }}
+                >
+                  <Bot className="h-4 w-4" />
+                  Start Mock Interview
+                </button>
+              </div>
+            </GlassCard>
+          ) : null}
+
           <RecommendationSection
             title="Best For Your Target Role"
             description="These are the most direct opportunities for the role currently being targeted in Career Guidance or the filter above."
             jobs={targetRoleMatches}
             emptyCopy="No direct target-role matches for the current filters. Broaden location or source, or switch to a nearby role."
             savedLookup={savedLookup}
+            onAutopilot={handleStartAutopilot}
             onSave={handleSaveToTracker}
             onPrep={handleGeneratePrepPack}
             onMock={handleStartMockInterview}
@@ -554,6 +744,7 @@ export default function RecommendedJobsPage() {
             jobs={profileMatches}
             emptyCopy="No adjacent-fit roles cleared the current filters."
             savedLookup={savedLookup}
+            onAutopilot={handleStartAutopilot}
             onSave={handleSaveToTracker}
             onPrep={handleGeneratePrepPack}
             onMock={handleStartMockInterview}
@@ -695,6 +886,7 @@ function RecommendationSection({
   jobs,
   emptyCopy,
   savedLookup,
+  onAutopilot,
   onSave,
   onPrep,
   onMock,
@@ -725,6 +917,7 @@ function RecommendationSection({
               key={job.id}
               job={job}
               isSaved={savedLookup.has(createSavedJobKey(job))}
+              onAutopilot={() => onAutopilot(job)}
               onSave={() => onSave(job)}
               onPrep={() => onPrep(job)}
               onMock={() => onMock(job)}
@@ -747,7 +940,7 @@ function RecommendationSection({
   );
 }
 
-function JobCard({ job, isSaved, onSave, onPrep, onMock }) {
+function JobCard({ job, isSaved, onAutopilot, onSave, onPrep, onMock }) {
   return (
     <div
       className="rounded-[28px] border p-5"
@@ -848,6 +1041,19 @@ function JobCard({ job, isSaved, onSave, onPrep, onMock }) {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onAutopilot}
+          className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5"
+          style={{
+            borderColor: "rgba(56,189,248,0.24)",
+            background: "rgba(56,189,248,0.1)",
+            color: "var(--theme-text-strong)",
+          }}
+        >
+          <Sparkles className="h-4 w-4" />
+          {isSaved ? "Refresh Autopilot" : "Start Autopilot"}
+        </button>
         <button
           type="button"
           onClick={onSave}
@@ -1008,6 +1214,25 @@ function createSavedJobKey(item) {
     String(item?.role || "").trim().toLowerCase(),
     String(item?.jobLink || item?.applicationUrl || "").trim().toLowerCase(),
   ].join("::");
+}
+
+function formatStatusLabel(status) {
+  if (status === "ready") {
+    return "Ready To Apply";
+  }
+  if (status === "interviewing") {
+    return "Interviewing";
+  }
+  if (status === "wishlist") {
+    return "Wishlist";
+  }
+  if (status === "applied") {
+    return "Applied";
+  }
+  if (status === "offer") {
+    return "Offer";
+  }
+  return "Closed";
 }
 
 function buildLatestResumeVersion({ resumeOverview, resumeWorkspace }) {
